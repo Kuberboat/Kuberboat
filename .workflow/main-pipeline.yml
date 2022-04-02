@@ -10,6 +10,7 @@ triggers:
 variables:
   DOCKER_IMAGE: p9t.io/kuberboat/ci:1.0.0
   DOCKER_CONTAINER: kuberboat-ci-test
+  REPO_NAME: kuberboat
   TEST_FMT_PATH: ./test/test_fmt.sh
 stages:
   - name: container
@@ -36,7 +37,7 @@ stages:
         script: |-
           docker exec ${DOCKER_CONTAINER} bash -c '\
             git clone git@gitee.com:xx01cyx/kuberboat.git; \
-            cd ${GITEE_REPO}'
+            cd ${REPO_NAME}'
           if [ $? -ne 0 ]
           then exit 1
           fi
@@ -51,7 +52,7 @@ stages:
         hostGroupID: test
         script: |-
           docker exec ${DOCKER_CONTAINER} bash -c '\
-            cd ${GITEE_REPO}; \
+            cd ${REPO_NAME}; \
             chmod +x ${TEST_FMT_PATH}; \
             ./${TEST_FMT_PATH}'
           exit $?
@@ -61,7 +62,7 @@ stages:
         hostGroupID: test
         script: |-
           docker exec ${DOCKER_CONTAINER} bash -c '\
-            cd ${GITEE_REPO}; \
+            cd ${REPO_NAME}; \
             make'
           exit $?
 permissions:
