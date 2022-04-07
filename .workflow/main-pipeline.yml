@@ -62,6 +62,7 @@ stages:
         hostGroupID: test
         script: |-
           docker exec ${DOCKER_CONTAINER} bash -c '\
+            echo $PATH; \
             cd ${REPO_NAME}; \
             make'
           exit $?
