@@ -32,30 +32,6 @@ type ContainerPort struct {
 	ContainerPort uint16
 }
 
-// Volume represents a named volume in a pod that may be accessed by any container in the pod.
-// Only supports on-disk EmptyDir.
-type Volume struct {
-	// Name of the volume.
-	// Must be unique within a pod.
-	// Only supports host path volume.
-	Name string
-	// VolumeSource represents the location and type of the mounted volume.
-	// If not specified, the Volume is implied to be an EmptyDir.
-	VolumeSource
-}
-
-// VolumeSource represents the source of a volume to mount.
-// Only one of its members may be specified.
-type VolumeSource struct {
-	// EmptyDir represents a temporary directory that shares a pod's lifetime.
-	EmptyDir *EmptyDirVolumeSource
-}
-
-// EmptyDirVolumeSource is the representation of EmptyDir PV type.
-// Currently not configurable.
-type EmptyDirVolumeSource struct {
-}
-
 type VolumeMount struct {
 	// This must match the Name of a Volume.
 	Name string
@@ -131,8 +107,8 @@ type PodSpec struct {
 	// List of containers belonging to the pod.
 	// There must be at least one container in a Pod.
 	Containers []Container
-	// List of volumes that can be mounted by containers belonging to the pod.
-	Volumes []Volume
+	// List of named volumes that can be mounted by containers belonging to the pod.
+	Volumes []string
 }
 
 // PodStatus represents information about the status of a pod.
