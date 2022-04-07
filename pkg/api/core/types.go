@@ -17,7 +17,7 @@ type Container struct {
 	// List of ports to expose from the container.
 	Ports []ContainerPort
 	// Compute Resources required by this container.
-	Resources []ResourceRequirements
+	Resources map[ResourceName]uint64
 	// Entrypoint of the container. Equivalent to `docker run --entrypoint ...`.
 	// The container image's ENTRYPOINT is used if this is not provided.
 	Command []string
@@ -30,30 +30,6 @@ type Container struct {
 type ContainerPort struct {
 	// Port number to expose on the pod's IP address.
 	ContainerPort uint16
-}
-
-// Volume represents a named volume in a pod that may be accessed by any container in the pod.
-// Only supports on-disk EmptyDir.
-type Volume struct {
-	// Name of the volume.
-	// Must be unique within a pod.
-	// Only supports host path volume.
-	Name string
-	// VolumeSource represents the location and type of the mounted volume.
-	// If not specified, the Volume is implied to be an EmptyDir.
-	VolumeSource
-}
-
-// VolumeSource represents the source of a volume to mount.
-// Only one of its members may be specified.
-type VolumeSource struct {
-	// EmptyDir represents a temporary directory that shares a pod's lifetime.
-	EmptyDir *EmptyDirVolumeSource
-}
-
-// EmptyDirVolumeSource is the representation of EmptyDir PV type.
-// Currently not configurable.
-type EmptyDirVolumeSource struct {
 }
 
 type VolumeMount struct {
@@ -74,12 +50,6 @@ const (
 	// ResourceMemory represents the memory in bytes that a container can use.
 	ResourceMemory ResourceName = "memory"
 )
-
-// ResourceRequirements describes the compute resource requirements of a single container.
-type ResourceRequirements struct {
-	// Limits describes the maximum amount of compute resources allowed.
-	Limits map[ResourceName]uint64
-}
 
 // Kind specified the category of an object.
 type Kind string
@@ -137,8 +107,8 @@ type PodSpec struct {
 	// List of containers belonging to the pod.
 	// There must be at least one container in a Pod.
 	Containers []Container
-	// List of volumes that can be mounted by containers belonging to the pod.
-	Volumes []Volume
+	// List of named volumes that can be mounted by containers belonging to the pod.
+	Volumes []string
 }
 
 // PodStatus represents information about the status of a pod.
