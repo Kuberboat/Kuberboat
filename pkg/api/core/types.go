@@ -17,7 +17,7 @@ type Container struct {
 	// List of ports to expose from the container.
 	Ports []ContainerPort
 	// Compute Resources required by this container.
-	Resources []ResourceRequirements
+	Resources map[ResourceName]uint64
 	// Entrypoint of the container. Equivalent to `docker run --entrypoint ...`.
 	// The container image's ENTRYPOINT is used if this is not provided.
 	Command []string
@@ -74,12 +74,6 @@ const (
 	// ResourceMemory represents the memory in bytes that a container can use.
 	ResourceMemory ResourceName = "memory"
 )
-
-// ResourceRequirements describes the compute resource requirements of a single container.
-type ResourceRequirements struct {
-	// Limits describes the maximum amount of compute resources allowed.
-	Limits map[ResourceName]uint64
-}
 
 // Kind specified the category of an object.
 type Kind string
