@@ -1,0 +1,28 @@
+syntax = "proto3";
+
+package apiserver_service;
+
+option go_package = "p9t.io/kuberboat/pkg/proto";
+
+import "core.proto";
+
+message CreatePodRequest {
+  core.Pod pod = 1;
+}
+
+message CreatePodResponse {
+  int32 status = 1;
+}
+
+message DeletePodRequest {
+  string pod_name = 1;
+}
+
+message DeletePodResponse {
+  int32 status = 1;
+}
+
+service ApiServerService {
+  rpc CreatePod(CreatePodRequest) returns(CreatePodResponse);
+  rpc DeletePod(DeletePodRequest) returns(DeletePodResponse);
+}

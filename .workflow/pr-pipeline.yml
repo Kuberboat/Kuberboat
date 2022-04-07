@@ -3,6 +3,10 @@ name: kuberboat-pr-pipeline
 displayName: pr-pipeline
 triggers:
   trigger: auto
+  push:
+    branches:
+      exclude:
+        - main
   pr:
     branches:
       precise:

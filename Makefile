@@ -2,15 +2,21 @@ BUILD_DIR = ./out/bin
 CMD_SOURCE_DIRS = cmd
 SOURCE_DIRS = cmd pkg
 SOURCE_PACKAGES = ./cmd/... ./pkg/...
-BOAT_SRC = ./cmd/boat/main.go
-BOAT_OBJ = boat
+APISERVER_SRC = ./cmd/apiserver/apiserver.go
+APISERVER_OBJ = apiserver
+PROTO_SCRIPT = scripts/proto_gen.sh
 
 $(shell mkdir -p $(BUILD_DIR))
 
 export GO111MODULE := on
+export GOPROXY := https://mirrors.aliyun.com/goproxy/,direct
 
-boat: $(BOAT_SRC)
-	@go build -o $(BUILD_DIR)/$(BOAT_OBJ) $(BOAT_SRC)
+all: proto $(APISERVER_SRC)
+	@go build -o $(BUILD_DIR)/$(APISERVER_OBJ) $(APISERVER_SRC)
+
+.PHONY: proto
+proto:
+	./$(PROTO_SCRIPT)
 
 .PHONY: fmt
 fmt:
