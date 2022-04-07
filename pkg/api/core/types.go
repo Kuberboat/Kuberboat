@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// Container-related types
+// Container corresponds to a container entity described in pod spec.
 // A single Docker application container that you want to run within a pod.
 type Container struct {
 	// Name of the container.
@@ -44,13 +44,14 @@ type Volume struct {
 	VolumeSource
 }
 
-// Represents the source of a volume to mount.
+// VolumeSource represents the source of a volume to mount.
 // Only one of its members may be specified.
 type VolumeSource struct {
 	// EmptyDir represents a temporary directory that shares a pod's lifetime.
 	EmptyDir *EmptyDirVolumeSource
 }
 
+// EmptyDirVolumeSource is the representation of EmptyDir PV type.
 // Currently not configurable.
 type EmptyDirVolumeSource struct {
 }
@@ -67,10 +68,10 @@ type ResourceName string
 
 // These are the valid types of resources that a docker container can be confined to.
 const (
-	// CPU, in cores.
-	// Currently using half a core is not supported.
+	// ResourceCPU represents the number of cores a container can use.
+	// Using half a core is not supported.
 	ResourceCPU ResourceName = "cpu"
-	// Memory, in bytes.
+	// ResourceMemory represents the memory in bytes that a container can use.
 	ResourceMemory ResourceName = "memory"
 )
 
@@ -85,6 +86,7 @@ type Kind string
 
 // These are valid kinds of an object.
 const (
+	// PodType means the resource is a pod.
 	PodType Kind = "Pod"
 )
 
@@ -97,7 +99,7 @@ const (
 	// has not been started. This includes time before being bound to a node, as well as time spent
 	// pulling images onto the host.
 	PodPending PodPhase = "Pending"
-	// PodRunning means the pod has been bound to a node and all of the containers have been started.
+	// PodRunning means the pod has been bound to a node and all the containers have been started.
 	// At least one container is still running or is in the process of being restarted.
 	PodRunning PodPhase = "Running"
 	// PodSucceeded means that all containers in the pod have voluntarily terminated
@@ -130,7 +132,7 @@ type ObjectMeta struct {
 	Labels map[string]string
 }
 
-// The set of properties of a pod that can be specified using a yaml file.
+// PodSpec is the set of properties of a pod that can be specified using a yaml file.
 type PodSpec struct {
 	// List of containers belonging to the pod.
 	// There must be at least one container in a Pod.
