@@ -15,7 +15,8 @@ import (
 const APISERVER_PORT uint16 = 6789
 
 type server struct {
-	pb.UnimplementedApiServerServiceServer
+	pb.UnimplementedApiServerKubeletServiceServer
+	pb.UnimplementedApiServerCtlServiceServer
 }
 
 func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.CreatePodResponse, error) {
@@ -28,15 +29,22 @@ func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.D
 	return &pb.DeletePodResponse{Status: 0}, nil
 }
 
-func Run() {
+func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.RegisterNodeResponse, error) {
+	// TODO: Register node logic
+	return &pb.RegisterNodeResponse{Status: 0}, nil
+}
+
+func StartServer() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", APISERVER_PORT))
 	if err != nil {
 		glog.Fatal("Api server failed to connect!")
 	}
 
 	apiServer := grpc.NewServer()
-	pb.RegisterApiServerServiceServer(apiServer, &server{})
-	glog.Infof("Api server listening at %v\n", lis.Addr())
+	pb.RegisterApiServerCtlServiceServer(apiServer, &server{})
+	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})
+
+	glog.Infoln("Api server listening at %v", lis.Addr())
 
 	if err := apiServer.Serve(lis); err != nil {
 		glog.Fatal(err)

@@ -1,0 +1,20 @@
+syntax = "proto3";
+
+package apiserver_kubelet_service;
+
+option go_package = "p9t.io/kuberboat/pkg/proto";
+
+import "core.proto";
+
+message RegisterNodeRequest {
+    core.Node node = 1;
+}
+
+message RegisterNodeResponse {
+    int32 status = 1;
+}
+
+// Service on API Server for Kubeclet.
+service ApiServerKubeletService {
+    rpc RegisterNode(RegisterNodeRequest) returns(RegisterNodeResponse);
+}
