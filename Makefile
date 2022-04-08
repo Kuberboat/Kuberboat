@@ -5,6 +5,8 @@ SOURCE_PACKAGES = ./cmd/... ./pkg/...
 APISERVER_SRC = ./cmd/apiserver/apiserver.go
 APISERVER_OBJ = apiserver
 PROTO_SCRIPT = scripts/proto_gen.sh
+KUBELET_SRC = ./cmd/kubelet/kubelet.go
+KUBELET_OBJ = kubelet
 
 $(shell mkdir -p $(BUILD_DIR))
 
@@ -17,6 +19,9 @@ all: proto $(APISERVER_SRC)
 .PHONY: proto
 proto:
 	./$(PROTO_SCRIPT)
+
+kubelet: $(KUBELET_SRC)
+	@go build -o $(BUILD_DIR)/$(KUBELET_OBJ) $(KUBELET_SRC)
 
 .PHONY: fmt
 fmt:
