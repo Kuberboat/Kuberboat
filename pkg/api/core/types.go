@@ -136,3 +136,56 @@ type Pod struct {
 	// Entirely populated by the system.
 	Status PodStatus
 }
+
+// NodeSpec describes the attributes of a node.
+type NodeSpec struct {
+	// PodCIDR represents the IPV4 range assigned to the node for usage by Pods on the node.
+	PodCIDR string
+}
+
+// NodePhase is a label for the condition of a node at the current time.
+type NodePhase string
+
+// These are the valid statuses of node.
+const (
+	// NodePending means the node has been created/added by the system, but not configured.
+	NodePending NodePhase = "Pending"
+	// NodeRunning means the node has been configured and has some components running.
+	NodeRunning NodePhase = "Running"
+	// NodeTerminated means the node has been removed from the cluster.
+	NodeTerminated NodePhase = "Terminated"
+)
+
+// NodeConditionType defines node's condition.
+type NodeCondition string
+
+// These are valid conditions of node.
+const (
+	// NodeReady means kubelet is healthy and ready to accept pods.
+	NodeReady NodeCondition = "Ready"
+	// NodeUnavailable means the node is unavailable for use.
+	NodeUnavailable NodeCondition = "Unavailable"
+)
+
+// NodeStatus represents information about the status of a node.
+type NodeStatus struct {
+	// NodePhase is a simple, high-level summary of where the node is in its lifecycle.
+	Phase NodePhase
+	// NodeCondition indicates whether the node is available or not.
+	Condition NodeCondition
+	// Address is the IPV4 address of the node. Currently, we only support node address
+	// represented in IPV4.
+	Address string
+}
+
+// Node represents a host machine where Pods are actually running.
+type Node struct {
+	// The type of a node is Node.
+	TypeMeta
+	// Standard object's metadata.
+	ObjectMeta
+	// Specification of the desired behavior of the node.
+	Spec NodeSpec
+	// Most recently observed status of the node.
+	Status NodeStatus
+}
