@@ -3,9 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
-	"log"
 	"time"
 
+	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"p9t.io/kuberboat/cmd/apiserver/app"
@@ -24,7 +24,7 @@ func NewCtlClient() *ctlClient {
 	addr := fmt.Sprint("localhost:", app.APISERVER_PORT)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		log.Fatalf("Kubectl client failed to connect to api server")
+		glog.Fatal("Kubectl client failed to connect to api server")
 	}
 	return &ctlClient{
 		connection: conn,

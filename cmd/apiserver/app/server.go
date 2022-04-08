@@ -3,8 +3,9 @@ package app
 import (
 	"context"
 	"fmt"
-	"log"
 	"net"
+
+	"github.com/golang/glog"
 
 	"google.golang.org/grpc"
 	pb "p9t.io/kuberboat/pkg/proto"
@@ -30,14 +31,14 @@ func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.D
 func Run() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", APISERVER_PORT))
 	if err != nil {
-		log.Fatalln("Api server failed to connect!")
+		glog.Fatal("Api server failed to connect!")
 	}
 
 	apiServer := grpc.NewServer()
 	pb.RegisterApiServerServiceServer(apiServer, &server{})
-	log.Printf("Api server listening at %v\n", lis.Addr())
+	glog.Infof("Api server listening at %v\n", lis.Addr())
 
 	if err := apiServer.Serve(lis); err != nil {
-		log.Fatalln(err)
+		glog.Fatal(err)
 	}
 }
