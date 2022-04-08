@@ -20,7 +20,8 @@ import (
 )
 
 const (
-	pauseImage string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
+	pauseImage         string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
+	pauseContainerName string = "pause"
 )
 
 // Kubelet defines public methods of a PodManager.
@@ -28,8 +29,7 @@ const (
 type Kubelet interface {
 	// GetPods returns the pods bound to the kubelet and their spec.
 	GetPods() []*core.Pod
-	// GetPodByName provides the (non-mirror) pod that matches namespace and
-	// name, as well as whether the pod was found.
+	// GetPodByName provides the pod that matches name, as well as whether the pod was found.
 	GetPodByName(name string) (*core.Pod, bool)
 	// AddPod runs a pod based on the pod spec passed in as parameter.
 	// The status and metadata of the pod will be managed.
@@ -111,7 +111,7 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 		}
 	}
 
-	// TODO(zhidong.guo): Start a monitor to monitor pod status.
+	// TODO(yuanxin.cao): Start a monitor to monitor pod status.
 
 	return nil
 }
@@ -142,7 +142,7 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 		}
 	}
 
-	pauseName := GetPodSpecificName(pod, "pause")
+	pauseName := GetPodSpecificName(pod, pauseContainerName)
 	resp, err := cli.ContainerCreate(ctx, &dockercontainer.Config{
 		Image:        pauseImage,
 		ExposedPorts: ports,
@@ -214,7 +214,7 @@ func (kl *dockerKubelet) createPodVolumes(ctx context.Context, pod *core.Pod) er
 
 // runPodContainer runs a container and joins it to pod's pause container.
 func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *core.Container) error {
-	pauseContainerName := GetPodSpecificName(pod, "pause")
+	pauseContainerName := GetPodSpecificName(pod, pauseContainerName)
 	cli := kl.dockerClient
 
 	// Pull image.
@@ -302,7 +302,7 @@ func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) error
 	}
 
 	// Remove pause container.
-	pauseName := GetPodSpecificName(pod, "pause")
+	pauseName := GetPodSpecificName(pod, pauseContainerName)
 	err := kl.dockerClient.ContainerStop(ctx, pauseName, nil)
 	if err != nil {
 		return err
