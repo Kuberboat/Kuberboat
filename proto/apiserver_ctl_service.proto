@@ -1,6 +1,6 @@
 syntax = "proto3";
 
-package apiserver_service;
+package apiserver_ctl_service;
 
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
@@ -22,7 +22,8 @@ message DeletePodResponse {
   int32 status = 1;
 }
 
-service ApiServerService {
+// Service on API Server for Kubectl.
+service ApiServerCtlService {
   rpc CreatePod(CreatePodRequest) returns(CreatePodResponse);
   rpc DeletePod(DeletePodRequest) returns(DeletePodResponse);
 }

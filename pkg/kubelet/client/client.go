@@ -15,35 +15,27 @@ import (
 // FIXME: Move this into config file.
 const CONN_TIMEOUT time.Duration = time.Second
 
-type ctlClient struct {
+type kubeletClient struct {
 	connection *grpc.ClientConn
-	client     pb.ApiServerCtlServiceClient
+	client     pb.ApiServerKubeletServiceClient
 }
 
-func NewCtlClient() *ctlClient {
+func NewKubeletClient() *kubeletClient {
 	addr := fmt.Sprint("localhost:", app.APISERVER_PORT)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		glog.Fatal("Kubectl client failed to connect to api server")
+		glog.Fatal("Kubelet client failed to connect to api server")
 	}
-	return &ctlClient{
+	return &kubeletClient{
 		connection: conn,
-		client:     pb.NewApiServerCtlServiceClient(conn),
+		client:     pb.NewApiServerKubeletServiceClient(conn),
 	}
 }
 
-func (c *ctlClient) CreatePod(pod *pb.Pod) (*pb.CreatePodResponse, error) {
+func (c *kubeletClient) RegisterNode(node *pb.Node) (*pb.RegisterNodeResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
-	return c.client.CreatePod(ctx, &pb.CreatePodRequest{
-		Pod: pod,
-	})
-}
-
-func (c *ctlClient) DeletePod(podName string) (*pb.DeletePodResponse, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
-	defer cancel()
-	return c.client.DeletePod(ctx, &pb.DeletePodRequest{
-		PodName: podName,
+	return c.client.RegisterNode(ctx, &pb.RegisterNodeRequest{
+		Node: node,
 	})
 }
