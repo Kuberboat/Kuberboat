@@ -8,6 +8,8 @@ PROTO_SCRIPT = scripts/proto_gen.sh
 PROTO_GEN_DIR = ./pkg/proto
 KUBELET_SRC = ./cmd/kubelet/kubelet.go
 KUBELET_OBJ = kubelet
+KUBECTL_SRC = ./cmd/kubectl/kubectl.go
+KUBECTL_OBJ = kubectl
 
 $(shell mkdir -p $(BUILD_DIR))
 
@@ -21,6 +23,9 @@ apiserver: $(APISERVER_SRC)
 
 kubelet: $(KUBELET_SRC)
 	@go build -o $(BUILD_DIR)/$(KUBELET_OBJ) $(KUBELET_SRC)
+
+kubectl: $(KUBECTL_SRC)
+	@go build -o $(BUILD_DIR)/$(KUBECTL_OBJ) $(KUBECTL_SRC)
 
 .PHONY: proto
 proto:
