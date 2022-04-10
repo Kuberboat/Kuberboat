@@ -17,10 +17,14 @@ var (
 		Use:   "delete",
 		Short: "Delete resources by file names, stdin, resources and names, or by resources and label selector.",
 		Long: `Examples:
-	# Delete a pod using the name
-	kubectl delete pod
-	# Delete all pods
-  	kubectl delete pods --all`,
+  # Delete a pod using the name
+  kubectl delete pod podName
+
+  # Delete specified pods
+  kubectl delete pods podName1 podName2 ...
+
+  # Delete all pods
+  kubectl delete pods --all`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			resourceType := args[0]
