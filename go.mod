@@ -32,4 +32,7 @@ require (
 	golang.org/x/time v0.0.0-20220224211638-0e9765cccd65 // indirect
 	google.golang.org/genproto v0.0.0-20211208223120-3a66f561d7aa // indirect
 	gotest.tools/v3 v3.1.0 // indirect
+	github.com/inconshreveable/mousetrap v1.0.0 // indirect
+	github.com/spf13/cobra v1.4.0 // indirect
+	github.com/spf13/pflag v1.0.5 // indirect
 )
