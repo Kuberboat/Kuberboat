@@ -5,8 +5,7 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"fmt"
-
+	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 )
 
@@ -15,26 +14,24 @@ var (
 	getCmd = &cobra.Command{
 		Use:   "get",
 		Short: "Display one or many resources.",
-		Long: `Prints a table of the most important information about the specified resources. You can filter the list using a label
-selector and the --selector flag. If the desired resource type is namespaced you will only see results in your current
-namespace unless you pass --all-namespaces.
+		Long: `Display one or many resources.
 
-Uninitialized objects are not shown unless --include-uninitialized is passed.
-	
-By specifying the output as 'template' and providing a Go template as the value of the --template flag, you can filter
-the attributes of the fetched resources.
-	
-Use "kubectl api-resources" for a complete list of supported resources.`,
+Examples:
+  # List all pods in ps output format
+  kubectl get pods
+
+  # List pods specified by their names
+  kubectl get pod podName1 podName2 ...`,
 		Args: cobra.MinimumNArgs(1),
-		RunE: func(cmd *cobra.Command, args []string) error {
+		Run: func(cmd *cobra.Command, args []string) {
 			resourceType := args[0]
 			switch resourceType {
 			case "pod":
-				return getPods(args[1:])
+				getPods(args[1:])
 			case "pods":
-				return getAllPods()
+				getPods(nil)
 			default:
-				return fmt.Errorf("%q is not a supported resource type", resourceType)
+				glog.Fatalf("%q is not a supported resource type", resourceType)
 			}
 		},
 	}
@@ -54,12 +51,11 @@ func init() {
 	// getCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
 }
 
-func getPods(podNames []string) error {
-	fmt.Println("get these", podNames, "pods")
-	return nil
-}
-
-func getAllPods() error {
-	fmt.Println("get all pods")
-	return nil
+func getPods(podNames []string) {
+	// client := client.NewCtlClient()
+	if podNames == nil {
+		// TODO: get all the pods
+	} else {
+		// TODO: get specified pods
+	}
 }
