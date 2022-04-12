@@ -2,6 +2,8 @@ package main
 
 import (
 	"flag"
+	"fmt"
+	"os"
 
 	"p9t.io/kuberboat/cmd/kubelet/app"
 )
@@ -12,7 +14,8 @@ var (
 )
 
 func init() {
-	flag.StringVar(&configPath, "config", "~/.kube/config.yml", "set path to the configuration file")
+	homePath, _ := os.UserHomeDir()
+	flag.StringVar(&configPath, "config", fmt.Sprintf("%s/.kube/kubelet_config.yaml", homePath), "set path to the kubelet configuration file")
 }
 
 func main() {
