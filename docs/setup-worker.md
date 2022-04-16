@@ -273,7 +273,7 @@ It could be indicated that in the host of `hostA`:
   1. FORWARD 4
      FORWARD 7 (ACCEPT)
 
-  # The following packets go this way, since a connection hash been established before.
+  # The following packets go this way, since a connection has been established before.
   2. FORWARD 3 (ACCEPT)
   ```
 
