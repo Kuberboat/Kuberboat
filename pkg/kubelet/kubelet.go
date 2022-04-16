@@ -3,11 +3,12 @@ package kubelet
 import (
 	"context"
 	"fmt"
-	"github.com/golang/glog"
 	"io"
 	"net"
 	"runtime"
 	"sync"
+
+	"github.com/golang/glog"
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
@@ -127,6 +128,11 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 	if err != nil {
 		return err
 	}
+	pullRes, err := io.ReadAll(out)
+	if err != nil {
+		return nil
+	}
+	glog.Info(string(pullRes[:]))
 	defer func(out io.ReadCloser) {
 		err := out.Close()
 		if err != nil {
@@ -222,6 +228,11 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 	if err != nil {
 		return err
 	}
+	pullRes, err := io.ReadAll(out)
+	if err != nil {
+		return nil
+	}
+	glog.Info(string(pullRes[:]))
 	defer func(out io.ReadCloser) {
 		err := out.Close()
 		if err != nil {
