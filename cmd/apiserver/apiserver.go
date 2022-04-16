@@ -1,7 +1,12 @@
 package main
 
-import "p9t.io/kuberboat/cmd/apiserver/app"
+import (
+	"flag"
+
+	"p9t.io/kuberboat/cmd/apiserver/app"
+)
 
 func main() {
-	app.Run()
+	flag.Parse()
+	app.StartServer()
 }

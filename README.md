@@ -29,3 +29,12 @@ make
 ``` 
 
 and you will see the executable under `out/bin`.
+
+### Kubectl
+You may use the help flag to get the usage.
+```shell
+kubectl apply -h
+kubectl get -h
+kubectl describe -h
+kubectl delete -h
+```

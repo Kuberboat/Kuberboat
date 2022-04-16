@@ -19,7 +19,7 @@ message Pod {
 message Container {
   string name = 1;
   string image = 2;
-  uint32 ports = 3;
+  repeated uint32 ports = 3;
   repeated ResourceRequirement resource_requirements = 4;
   repeated string command = 5;
   repeated VolumeMount volume_mounts = 6;
@@ -33,4 +33,8 @@ message ResourceRequirement {
 message VolumeMount {
   string name = 1;
   string mount_path = 2;
+}
+
+message Node {
+  
 }
