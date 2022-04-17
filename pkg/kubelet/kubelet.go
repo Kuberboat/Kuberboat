@@ -269,7 +269,7 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 	mode := fmt.Sprintf("container:%v", pauseContainerName)
 	resp, err := cli.ContainerCreate(ctx, &dockercontainer.Config{
 		Image: c.Image,
-		Cmd:   c.Command,
+		Cmd:   c.Commands,
 	}, &dockercontainer.HostConfig{
 		Binds:       vBinds,
 		NetworkMode: dockercontainer.NetworkMode(mode),
