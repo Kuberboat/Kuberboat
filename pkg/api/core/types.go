@@ -20,23 +20,23 @@ type Container struct {
 	Resources map[ResourceName]uint64
 	// Entrypoint of the container. Equivalent to `docker run --entrypoint ...`.
 	// The container image's ENTRYPOINT is used if this is not provided.
-	Command []string
+	Commands []string
 	// Pod volumes to mount into the container's filesystem.
-	VolumeMounts []VolumeMount
+	VolumeMounts []VolumeMount `yaml:"volumeMounts"`
 }
 
 // ContainerPort represents a network port in a single container.
 // Only TCP is supported.
 type ContainerPort struct {
 	// Port number to expose on the pod's IP address.
-	ContainerPort uint16
+	ContainerPort uint16 `yaml:"containerPort"`
 }
 
 type VolumeMount struct {
 	// This must match the Name of a Volume.
 	Name string
 	// Path within the container at which the volume should be mounted.  Must not contain ':'.
-	MountPath string
+	MountPath string `yaml:"mountPath"`
 }
 
 // ResourceName is the name identifying various resources in a ResourceList that a single container can use.
@@ -125,13 +125,13 @@ type PodStatus struct {
 // by clients and scheduled onto hosts.
 type Pod struct {
 	// The type of a pod is Pod.
-	TypeMeta
+	TypeMeta `yaml:",inline"`
 	// Standard object's metadata.
-	ObjectMeta
+	ObjectMeta `yaml:",inline"`
 	// Specification of the desired behavior of the pod.
 	// Entirely populated by the user, though there might be default values..
 	// Currently the only source of a PodSpec is a yaml file.
-	Spec PodSpec
+	Spec PodSpec `yaml:",inline"`
 	// Most recently observed status of the pod.
 	// Entirely populated by the system.
 	Status PodStatus

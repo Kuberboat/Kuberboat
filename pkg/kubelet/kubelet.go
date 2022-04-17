@@ -3,11 +3,12 @@ package kubelet
 import (
 	"context"
 	"fmt"
-	"github.com/golang/glog"
 	"io"
 	"net"
 	"runtime"
 	"sync"
+
+	"github.com/golang/glog"
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
@@ -258,7 +259,7 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 	mode := fmt.Sprintf("container:%v", pauseContainerName)
 	resp, err := cli.ContainerCreate(ctx, &dockercontainer.Config{
 		Image: c.Image,
-		Cmd:   c.Command,
+		Cmd:   c.Commands,
 	}, &dockercontainer.HostConfig{
 		Binds:       vBinds,
 		NetworkMode: dockercontainer.NetworkMode(mode),
