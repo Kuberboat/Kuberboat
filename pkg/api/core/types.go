@@ -127,7 +127,7 @@ type Pod struct {
 	// The type of a pod is Pod.
 	TypeMeta `yaml:",inline"`
 	// Standard object's metadata.
-	ObjectMeta `yaml:",inline"`
+	ObjectMeta `yaml:"metadata"`
 	// Specification of the desired behavior of the pod.
 	// Entirely populated by the user, though there might be default values..
 	// Currently the only source of a PodSpec is a yaml file.
