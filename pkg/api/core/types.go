@@ -124,12 +124,44 @@ type Pod struct {
 	// Standard object's metadata.
 	ObjectMeta `yaml:"metadata"`
 	// Specification of the desired behavior of the pod.
-	// Entirely populated by the user, though there might be default values..
+	// Entirely populated by the user, though there might be default values.
 	// Currently the only source of a PodSpec is a yaml file.
 	Spec PodSpec
 	// Most recently observed status of the pod.
 	// Entirely populated by the system.
 	Status PodStatus
+}
+
+/// ServicePort is a set of ports that describes the port mapping of the service.
+type ServicePort struct {
+	/// The port that will be exposed on the service. Pods in the cluster can find the
+	/// service via <ClusterIP>:<Port>.
+	Port uint16
+	/// The port exposed by pods that are selected by this service. <ClusterIP>:<Port> will
+	/// be mapped to this port of the pods in the service. If this is not specified in user
+	/// yaml, then default to `Port`.
+	TargetPort uint16 `yaml:"targetPort"`
+}
+
+/// ServiceSpec is the set of properties of a service.
+type ServiceSpec struct {
+	/// Ports describes the mapping of the port on service cluster IP and the port of inner pods.
+	Ports []ServicePort
+	/// Selector selects the pods whose labels match with the selector.
+	Selector map[string]string
+	/// ClusterIP is the virtual IP address of the service and is assigned by the master.
+	ClusterIP string
+}
+
+/// Service is a named abstraction of software service consisting of several pods. The pods can be
+/// found in the cluster through the service abstraction (more specifically, cluster IP).
+type Service struct {
+	// The type of a service is Service.
+	Kind
+	// Standard object's metadata.
+	ObjectMeta `yaml:"metadata"`
+	/// Specification of the desired behavior of the service.
+	Spec ServiceSpec
 }
 
 // NodeSpec describes the attributes of a node.
