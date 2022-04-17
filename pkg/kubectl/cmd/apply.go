@@ -10,6 +10,7 @@ import (
 	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
+	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/kubectl/client"
 )
 
@@ -33,7 +34,7 @@ Examples:
 			if err != nil {
 				glog.Errorf("%w", err)
 			}
-			var configKind ConfigKind
+			var configKind core.ConfigKind
 			err = yaml.Unmarshal(data, &configKind)
 			if err != nil {
 				glog.Error("error decoding your type")
@@ -56,14 +57,14 @@ func init() {
 }
 
 func applyPod(data []byte) {
-	var pod Pod
+	var pod core.Pod
 	err := yaml.Unmarshal(data, &pod)
 	if err != nil {
 		glog.Fatalf("cannot unmarshal data: %v", err)
 	}
 	glog.Infof("pod configuration got is %#v\n", pod)
 	client := client.NewCtlClient()
-	response, err := client.CreatePod(pod.Convert2RPCPod())
+	response, err := client.CreatePod(&pod)
 	if err != nil {
 		glog.Fatal(err)
 	}

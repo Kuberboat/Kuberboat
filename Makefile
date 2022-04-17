@@ -16,7 +16,7 @@ $(shell mkdir -p $(BUILD_DIR))
 export GO111MODULE := on
 export GOPROXY := https://mirrors.aliyun.com/goproxy/,direct
 
-all: proto apiserver kubelet
+all: proto apiserver kubelet kubectl
 
 apiserver: $(APISERVER_SRC)
 	@go build -o $(BUILD_DIR)/$(APISERVER_OBJ) $(APISERVER_SRC)

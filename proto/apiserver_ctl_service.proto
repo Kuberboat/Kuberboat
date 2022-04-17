@@ -4,10 +4,8 @@ package apiserver_ctl_service;
 
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
-import "core.proto";
-
 message CreatePodRequest {
-  core.Pod pod = 1;
+  bytes pod = 1;
 }
 
 message CreatePodResponse {

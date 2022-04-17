@@ -2,12 +2,14 @@ package app
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net"
 
 	"github.com/golang/glog"
 
 	"google.golang.org/grpc"
+	"p9t.io/kuberboat/pkg/api/core"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
@@ -20,6 +22,12 @@ type server struct {
 }
 
 func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.CreatePodResponse, error) {
+	var pod core.Pod
+	err := json.Unmarshal(req.Pod, &pod)
+	if err != nil {
+		return &pb.CreatePodResponse{Status: -1}, err
+	}
+	glog.Infof("server got %#v\n", pod)
 	// TODO: Create pod logic
 	return &pb.CreatePodResponse{Status: 0}, nil
 }

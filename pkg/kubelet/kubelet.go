@@ -145,7 +145,7 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 	ports := make(map[dockernat.Port]struct{})
 	for _, c := range pod.Spec.Containers {
 		for _, p := range c.Ports {
-			ports[dockernat.Port(fmt.Sprintf("%v/tcp", p.ContainerPort))] = struct{}{}
+			ports[dockernat.Port(fmt.Sprintf("%v/tcp", p))] = struct{}{}
 		}
 	}
 

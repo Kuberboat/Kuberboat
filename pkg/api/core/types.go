@@ -15,7 +15,7 @@ type Container struct {
 	// Container image name.
 	Image string
 	// List of ports to expose from the container.
-	Ports []ContainerPort
+	Ports []uint16
 	// Compute Resources required by this container.
 	Resources map[ResourceName]uint64
 	// Entrypoint of the container. Equivalent to `docker run --entrypoint ...`.
@@ -80,11 +80,6 @@ const (
 	PodFailed PodPhase = "Failed"
 )
 
-// TypeMeta describes the type of an individual object in an API response or request.
-type TypeMeta struct {
-	Kind
-}
-
 // ObjectMeta is metadata that all persisted resources must have.
 type ObjectMeta struct {
 	// The name of an object.
@@ -125,13 +120,13 @@ type PodStatus struct {
 // by clients and scheduled onto hosts.
 type Pod struct {
 	// The type of a pod is Pod.
-	TypeMeta `yaml:",inline"`
+	Kind
 	// Standard object's metadata.
 	ObjectMeta `yaml:"metadata"`
 	// Specification of the desired behavior of the pod.
 	// Entirely populated by the user, though there might be default values..
 	// Currently the only source of a PodSpec is a yaml file.
-	Spec PodSpec `yaml:",inline"`
+	Spec PodSpec
 	// Most recently observed status of the pod.
 	// Entirely populated by the system.
 	Status PodStatus
@@ -181,7 +176,7 @@ type NodeStatus struct {
 // Node represents a host machine where Pods are actually running.
 type Node struct {
 	// The type of a node is Node.
-	TypeMeta
+	Kind
 	// Standard object's metadata.
 	ObjectMeta
 	// Specification of the desired behavior of the node.

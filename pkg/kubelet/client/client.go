@@ -35,7 +35,5 @@ func NewKubeletClient() *kubeletClient {
 func (c *kubeletClient) RegisterNode(node *pb.Node) (*pb.RegisterNodeResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
-	return c.client.RegisterNode(ctx, &pb.RegisterNodeRequest{
-		Node: node,
-	})
+	return c.client.RegisterNode(ctx, &pb.RegisterNodeRequest{})
 }

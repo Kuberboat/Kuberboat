@@ -3,18 +3,17 @@ package kubelet
 import (
 	"context"
 	"flag"
-	"github.com/golang/glog"
 	"testing"
 	"time"
+
+	"github.com/golang/glog"
 
 	"github.com/google/uuid"
 	"p9t.io/kuberboat/pkg/api/core"
 )
 
 var testPod = core.Pod{
-	TypeMeta: core.TypeMeta{
-		Kind: core.PodType,
-	},
+	Kind: core.PodType,
 	ObjectMeta: core.ObjectMeta{
 		Name:              "test-pod",
 		UUID:              uuid.New(),
@@ -26,7 +25,7 @@ var testPod = core.Pod{
 			{
 				Name:  "nginx",
 				Image: "nginx:latest",
-				Ports: []core.ContainerPort{{ContainerPort: 80}},
+				Ports: []uint16{80},
 				VolumeMounts: []core.VolumeMount{
 					{
 						Name:      "test-volume",
