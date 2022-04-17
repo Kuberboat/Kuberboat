@@ -2,12 +2,14 @@
 
 ## Components
 
-- [etcd](#etcd)
-- [flannel](#flannel)
+- [Master Node Setup Guide](#master-node-setup-guide)
+  - [Components](#components)
+  - [Etcd](#etcd)
+  - [Flannel](#flannel)
 
-## etcd
+## Etcd
 
-The script below deletes current etcd data (if any) and runs etcd (v3.5.2) in a docker container. It is vital to **enable v2 API**, because Flannel does not support v3.
+The script below deletes current etcd data (if any) and runs etcd (v3.5.2) in a docker container. It is vital to **enable v2 API**, because flannel does not support v3.
 
 ```bash
 #!/bin/bash
@@ -37,11 +39,10 @@ To check if etcd is running properly, just check the log.
 docker logs etcd
 ```
 
-## flannel
+## Flannel
 
-Flannel daemons obtain information about the entire network from etcd. Here we will assign a subnet with IP range `172.17.0.0/16`, and each node will be given 256 IP addresses. We use vxlan to route packets, because it's quicker than UDP. Change `<etcd-address>` accordingly.
+Flannel daemons obtain information about the entire network from etcd. Here we will assign a subnet with IP range `10.17.0.0/16`, and each node will be given 256 IP addresses. We use vxlan to route packets, because it's quicker than UDP. Change `<etcd-address>` accordingly.
 
 ```bash
-ETCDCTL_API=2 etcdctl --endpoints=<etcd-address> set /coreos.com/network/config '{"Network": "172.17.0.0/16", "SubnetLen": 24, "SubnetMin": "172.17.0.0","SubnetMax": "172.17.255.0", "Backend": {"Type": "vxlan"}}'
+ETCDCTL_API=2 etcdctl --endpoints=<etcd-address> set /coreos.com/network/config '{"Network": "10.17.0.0/16", "SubnetLen": 24, "SubnetMin": "10.17.0.0","SubnetMax": "10.17.255.0", "Backend": {"Type": "vxlan"}}'
 ```
-
