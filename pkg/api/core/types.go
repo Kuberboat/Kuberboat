@@ -58,6 +58,8 @@ type Kind string
 const (
 	// PodType means the resource is a pod.
 	PodType Kind = "Pod"
+	// DeploymentType means the resource is a deployment.
+	DeploymentType = "Deployment"
 )
 
 // PodPhase is a label for the condition of a pod at the current time.
@@ -71,7 +73,7 @@ const (
 	PodPending PodPhase = "Pending"
 	// PodRunning means the pod has been bound to a node and all the containers have been started.
 	// At least one container is still running or is in the process of being restarted.
-	PodRunning PodPhase = "Running"
+	PodReady PodPhase = "Ready"
 	// PodSucceeded means that all containers in the pod have voluntarily terminated
 	// with a container exit code of 0, and the system is not going to restart any of these containers.
 	PodSucceeded PodPhase = "Succeeded"

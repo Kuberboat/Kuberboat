@@ -93,7 +93,7 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 	// Update pod status as Running.
 	// Note that running does not mean ready.
 	kl.podMetaManager.AddPod(pod)
-	pod.Status.Phase = core.PodRunning
+	pod.Status.Phase = core.PodReady
 	// TODO: Defer broadcasting condition variable. CV and mtx should be a member of the kubelet.
 
 	// Start sandbox pause container.
