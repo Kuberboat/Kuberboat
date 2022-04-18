@@ -164,6 +164,53 @@ type Service struct {
 	Spec ServiceSpec
 }
 
+// DeploymentSpec is the set of properties of a deployment that can be specified using a yaml file.
+type DeploymentSpec struct {
+	// Replicas is the desired number of pods.
+	Replicas uint32
+	// Template is the object that describes the pod that will be created if
+	// insufficient replicas are detected.
+	Template PodTemplateSpec
+}
+
+// PodTemplateSpec describes the data a pod should have when created from a template.
+type PodTemplateSpec struct {
+	// Standard object's metadata.
+	// For PodTemplateSpec, ObjectMeta provides labels and names for the pods created/
+	// UUID and CreationTimestamp is unused.
+	ObjectMeta
+	// Specification of the desired behavior of the pod.
+	Spec PodSpec
+}
+
+// DeploymentStatus holds information about the observed status of a deployment.
+type DeploymentStatus struct {
+	// The generation observed by the deployment controller.
+	ObservedGeneration int64
+	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
+	Replicas int32
+	// Total number of ready pods targeted by this deployment that have the desired template spec.
+	UpdatedReplicas int32
+	// Total number of ready pods targeted by this deployment.
+	ReadyReplicas int32
+}
+
+// Deployment is a collection of pods that are monitored. It ensures the number of pods in a deployment is stable.
+type Deployment struct {
+	// The type of a deployment is Deployment.
+	Kind
+	// Standard object's metadata.
+	// For deployment, Label is unused.
+	ObjectMeta
+	// Specification of the desired behavior of the pod.
+	// Entirely populated by the user, though there might be default values..
+	// Currently the only source of a PodSpec is a yaml file.
+	Spec DeploymentSpec
+	// DeploymentStatus is the most recently observed status of the pod.
+	// Entirely populated by the system.
+	Status DeploymentStatus
+}
+
 // NodeSpec describes the attributes of a node.
 type NodeSpec struct {
 	// PodCIDR represents the IPV4 range assigned to the node for usage by Pods on the node.
