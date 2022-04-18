@@ -1,0 +1,17 @@
+kind: Config
+duration: connection_timeout # use Second as unit, default is 1s
+clusters:
+- cluster:
+    server: https://1.2.3.4 # default is localhost
+    port: 1234 # default is 6443
+  name: development
+- cluster:
+    server: https://5.6.7.8
+    port: 5678
+  name: scratch
+contexts:
+- context: development # name of the cluster
+  name: dev-frontend
+currentContext:
+  context: development
+  name: dev-frontend

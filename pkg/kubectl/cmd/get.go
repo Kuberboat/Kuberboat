@@ -5,7 +5,8 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"github.com/golang/glog"
+	"log"
+
 	"github.com/spf13/cobra"
 )
 
@@ -31,7 +32,7 @@ Examples:
 			case "pods":
 				getPods(nil)
 			default:
-				glog.Fatalf("%q is not a supported resource type", resourceType)
+				log.Fatalf("%v is not a supported resource type", resourceType)
 			}
 		},
 	}

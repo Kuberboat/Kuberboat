@@ -2,3 +2,5 @@
 
 out/
 pkg/proto
+
+/.vscode

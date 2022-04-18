@@ -6,6 +6,7 @@ package cmd
 
 import (
 	"fmt"
+	"log"
 
 	"github.com/spf13/cobra"
 )
@@ -30,6 +31,8 @@ Examples:
 			describePods(args[1:])
 		case "pods":
 			describePods(nil)
+		default:
+			log.Fatalf("%v is not a supported resource type", resourceType)
 		}
 		fmt.Println("describe called")
 	},

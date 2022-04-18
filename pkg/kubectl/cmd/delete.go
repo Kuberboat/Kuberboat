@@ -5,7 +5,9 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"github.com/golang/glog"
+	"fmt"
+	"log"
+
 	"github.com/spf13/cobra"
 	"p9t.io/kuberboat/pkg/kubectl/client"
 )
@@ -38,7 +40,7 @@ var (
 					deletePods(args[1:])
 				}
 			default:
-				glog.Errorf("%v is not supported", resourceType)
+				log.Fatalf("%v is not supported\n", resourceType)
 			}
 		},
 	}
@@ -65,8 +67,8 @@ func deletePods(podNames []string) {
 	} else {
 		response, err := client.DeletePod(podNames[0]) // TODO: use DeletePods
 		if err != nil {
-			glog.Fatal(err)
+			log.Fatal(err)
 		}
-		glog.Infof("Response status: %v ;Pods deleted", response.Status)
+		fmt.Printf("Response status: %v ;Pods deleted\n", response.Status)
 	}
 }

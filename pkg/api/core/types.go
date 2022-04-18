@@ -263,3 +263,41 @@ type Node struct {
 	// Most recently observed status of the node.
 	Status NodeStatus
 }
+
+// Cluster specifies the cluster by Server and Port
+type Cluster struct {
+	// Server is the URL of the apiserver, default is localhost
+	Server string
+	// Port is the port of the apiserver, default is 6443
+	Port uint16
+}
+
+// ClusterWithName wraps a cluster with its name
+type ClusterWithName struct {
+	// inner Cluster
+	Cluster
+	// context use name to specifiy cluster
+	Name string
+}
+
+// ContextWithName wraps a context with its name
+type ContextWithName struct {
+	// cluster's name
+	Context string
+	// context's name
+	Name string
+}
+
+// Config describes cluster information for kubectl to connect
+type Config struct {
+	// The type of a config is Config
+	Kind string
+	// timeout of grpc client
+	Duration uint16
+	// clusters can connect to
+	Clusters []ClusterWithName
+	// contexts can use
+	Contexts []ContextWithName
+	// current context
+	CurrentContext ContextWithName `yaml:"currentContext"`
+}

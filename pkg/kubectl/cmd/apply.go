@@ -5,16 +5,16 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"fmt"
+	"log"
 	"os"
 
-	"github.com/golang/glog"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/kubectl/client"
 )
 
-// applyCmd represents the apply command
 var (
 	file     string
 	applyCmd = &cobra.Command{
@@ -32,18 +32,18 @@ Examples:
 		Run: func(cmd *cobra.Command, args []string) {
 			data, err := os.ReadFile(file)
 			if err != nil {
-				glog.Errorf("%w", err)
+				log.Fatal(err)
 			}
 			var configKind core.ConfigKind
 			err = yaml.Unmarshal(data, &configKind)
 			if err != nil {
-				glog.Error("error decoding your type")
+				log.Fatal("error decoding your config type")
 			}
 			switch configKind.Kind {
 			case "Pod":
 				applyPod(data)
 			default:
-				glog.Errorf("%v is not supported", configKind.Kind)
+				log.Fatalf("%v is not supported", configKind.Kind)
 			}
 		},
 	}
@@ -60,13 +60,13 @@ func applyPod(data []byte) {
 	var pod core.Pod
 	err := yaml.Unmarshal(data, &pod)
 	if err != nil {
-		glog.Fatalf("cannot unmarshal data: %v", err)
+		log.Fatalf("cannot unmarshal data: %v", err)
 	}
-	glog.Infof("pod configuration got is %#v\n", pod)
+	fmt.Printf("pod configuration got is %#v\n", pod)
 	client := client.NewCtlClient()
 	response, err := client.CreatePod(&pod)
 	if err != nil {
-		glog.Fatal(err)
+		log.Fatal(err)
 	}
-	glog.Infof("Response status: %v ;Pod created", response.Status)
+	fmt.Printf("Response status: %v ;Pod created\n", response.Status)
 }
