@@ -17,7 +17,6 @@ import (
 	dockerclient "github.com/docker/docker/client"
 	dockernat "github.com/docker/go-connections/nat"
 	"p9t.io/kuberboat/pkg/api/core"
-	"p9t.io/kuberboat/pkg/api/core/pod"
 	kubeletpod "p9t.io/kuberboat/pkg/kubelet/pod"
 )
 
@@ -47,7 +46,7 @@ type dockerKubelet struct {
 	// Docker client to access docker apis.
 	dockerClient *dockerclient.Client
 	// Manage pod metadata.
-	podMetaManager pod.MetaManager
+	podMetaManager kubeletpod.MetaManager
 	// Manage pod runtime data.
 	podRuntimeManager kubeletpod.RuntimeManager
 }
@@ -72,7 +71,7 @@ func newKubelet() Kubelet {
 	}
 	return &dockerKubelet{
 		dockerClient:      cli,
-		podMetaManager:    pod.NewMetaManager(),
+		podMetaManager:    kubeletpod.NewMetaManager(),
 		podRuntimeManager: kubeletpod.NewRuntimeManager(),
 	}
 }
