@@ -81,6 +81,10 @@ type RuntimeManager interface {
 	AddPodContainer(pod *core.Pod, name string)
 	// AddPodVolume records a volume as being used by a pod.
 	AddPodVolume(pod *core.Pod, name string)
+	// DeletePodContaiers removes all containers belonging to a pod.
+	DeletePodContainers(pod *core.Pod)
+	// DeletePodVolumes removes all volumes belonging to a pod.
+	DeletePodVolumes(pod *core.Pod)
 	// ContainersByPod returns all the containers created by a pod.
 	ContainersByPod(pod *core.Pod) ([]string, bool)
 	// VolumesByPod returns all the volumes created by a pod.
@@ -118,6 +122,18 @@ func (rm *dockerRuntimeManager) AddPodVolume(pod *core.Pod, name string) {
 	rm.mtx.Lock()
 	defer rm.mtx.Unlock()
 	rm.volumesByPod[pod] = append(rm.volumesByPod[pod], name)
+}
+
+func (rm *dockerRuntimeManager) DeletePodContainers(pod *core.Pod) {
+	rm.mtx.Lock()
+	defer rm.mtx.Unlock()
+	delete(rm.containersByPod, pod)
+}
+
+func (rm *dockerRuntimeManager) DeletePodVolumes(pod *core.Pod) {
+	rm.mtx.Lock()
+	defer rm.mtx.Unlock()
+	delete(rm.volumesByPod, pod)
 }
 
 func (rm *dockerRuntimeManager) ContainersByPod(pod *core.Pod) ([]string, bool) {

@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package kubelet_apiserver_service;
+
+option go_package = "p9t.io/kuberboat/pkg/proto";
+
+message KubeletCreatePodRequest {
+  bytes pod = 1;
+}
+
+message KubeletCreatePodResponse {
+  int32 status = 1;
+}
+
+message KubeletDeletePodRequest {
+  string pod_name = 1;
+}
+
+message KubeletDeletePodResponse {
+  int32 status = 1;
+}
+
+// Service on API Server for Kubectl.
+service KubeletApiServerService {
+  rpc CreatePod(KubeletCreatePodRequest) returns(KubeletCreatePodResponse);
+  rpc DeletePod(KubeletDeletePodRequest) returns(KubeletDeletePodResponse);
+}

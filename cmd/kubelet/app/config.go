@@ -1,9 +1,10 @@
 package app
 
 import (
+	"io/ioutil"
+
 	"github.com/golang/glog"
 	yaml "gopkg.in/yaml.v2"
-	"io/ioutil"
 )
 
 // KubeletConfig holds configuration options for kubelet.
@@ -18,7 +19,10 @@ func BuildConfig(configPath string) *KubeletConfig {
 
 	cfgFile, err := ioutil.ReadFile(configPath)
 	if err != nil {
-		glog.Fatal(err)
+		glog.Warningf("error opening config file, using defalt config: %v", err.Error())
+		return &KubeletConfig{
+			Port: 4000,
+		}
 	}
 
 	err = yaml.Unmarshal(cfgFile, cfg)
@@ -26,7 +30,7 @@ func BuildConfig(configPath string) *KubeletConfig {
 		glog.Fatal(err)
 	}
 
-	if cfg.Port < 0 || cfg.Port > 65535 {
+	if cfg.Port > 65535 {
 		glog.Fatalf("invalid port number: %v", cfg.Port)
 	}
 

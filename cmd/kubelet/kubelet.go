@@ -15,6 +15,7 @@ var (
 
 func init() {
 	homePath, _ := os.UserHomeDir()
+	flag.Set("logtostderr", "true")
 	flag.StringVar(&configPath, "config", fmt.Sprintf("%s/.kube/kubelet_config.yaml", homePath), "set path to the kubelet configuration file")
 }
 

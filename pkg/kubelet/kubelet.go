@@ -84,9 +84,16 @@ func (kl *dockerKubelet) GetPodByName(name string) (*core.Pod, bool) {
 	return kl.podMetaManager.PodByName(name)
 }
 
-func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
+func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) (err error) {
+	defer func() {
+		if err != nil {
+			kl.DeletePodByName(ctx, pod.Name)
+		}
+	}()
 	if _, ok := kl.podMetaManager.PodByName(pod.Name); ok {
-		return fmt.Errorf("pod exists already: %v", pod.Name)
+		err := fmt.Errorf("pod exists already: %v", pod.Name)
+		glog.Error(err.Error())
+		return err
 	}
 
 	// Update pod status as Running.
@@ -97,23 +104,25 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 
 	// Start sandbox pause container.
 	if err := kl.runPodSandBox(ctx, pod); err != nil {
+		glog.Errorf("cannot create sandbox: %v", err.Error())
 		return err
 	}
 
 	// Create volumes for the pod.
 	if err := kl.createPodVolumes(ctx, pod); err != nil {
+		glog.Errorf("cannot create volumes: %v", err.Error())
 		return err
 	}
 
 	// Start user containers.
 	for _, c := range pod.Spec.Containers {
 		if err := kl.runPodContainer(ctx, pod, &c); err != nil {
+			glog.Errorf("cannot create container: %v", err.Error())
 			return err
 		}
 	}
 
 	// TODO(yuanxin.cao): Start a monitor to monitor pod status.
-
 	return nil
 }
 
@@ -293,7 +302,9 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) error {
 	pod, ok := kl.podMetaManager.PodByName(name)
 	if !ok {
-		return fmt.Errorf("pod does not exist: %v", name)
+		err := fmt.Errorf("pod does not exist: %v", name)
+		glog.Error(err.Error())
+		return err
 	}
 
 	// TODO: Wait until pod is done adding. By doing while () { cv.Wait() }
@@ -304,10 +315,12 @@ func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) error
 	for _, c := range containers {
 		err := kl.dockerClient.ContainerStop(ctx, c, nil)
 		if err != nil {
+			glog.Errorf("cannot stop container: %v", err.Error())
 			return err
 		}
 		err = kl.dockerClient.ContainerRemove(ctx, c, dockertypes.ContainerRemoveOptions{})
 		if err != nil {
+			glog.Errorf("cannot remove container: %v", err.Error())
 			return err
 		}
 	}
@@ -316,21 +329,28 @@ func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) error
 	pauseName := GetPodSpecificName(pod, pauseContainerName)
 	err := kl.dockerClient.ContainerStop(ctx, pauseName, nil)
 	if err != nil {
+		glog.Errorf("cannot stop pause container: %v", err.Error())
 		return err
 	}
 	err = kl.dockerClient.ContainerRemove(ctx, pauseName, dockertypes.ContainerRemoveOptions{})
 	if err != nil {
+		glog.Errorf("cannot remove pause container: %v", err.Error())
 		return err
 	}
+
+	kl.podRuntimeManager.DeletePodContainers(pod)
 
 	// Remove volumes.
 	volumes, _ := kl.podRuntimeManager.VolumesByPod(pod)
 	for _, v := range volumes {
 		err = kl.dockerClient.VolumeRemove(ctx, v, true)
 		if err != nil {
+			glog.Errorf("cannot remove volume: %v", err.Error())
 			return err
 		}
 	}
+
+	kl.podRuntimeManager.DeletePodVolumes(pod)
 
 	return nil
 }
