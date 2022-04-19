@@ -14,7 +14,7 @@ import (
 )
 
 // FIXME: Move this into config file.
-const APISERVER_PORT uint16 = 6789
+const APISERVER_PORT uint16 = 6443
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -39,6 +39,11 @@ func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.D
 
 func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.RegisterNodeResponse, error) {
 	// TODO: Register node logic
+	var node core.Node
+	err := json.Unmarshal(req.Node, &node)
+	if err != nil {
+		return &pb.RegisterNodeResponse{Status: -1}, err
+	}
 	return &pb.RegisterNodeResponse{Status: 0}, nil
 }
 

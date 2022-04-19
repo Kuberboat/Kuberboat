@@ -4,24 +4,33 @@ package kubelet_apiserver_service;
 
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
+message NotifyRegisteredRequest {
+    bytes apiserver = 1;
+}
+
+message NotifyRegisteredResponse {
+    int32 status = 1;
+}
+
 message KubeletCreatePodRequest {
-  bytes pod = 1;
+    bytes pod = 1;
 }
 
 message KubeletCreatePodResponse {
-  int32 status = 1;
+    int32 status = 1;
 }
 
 message KubeletDeletePodRequest {
-  string pod_name = 1;
+    string pod_name = 1;
 }
 
 message KubeletDeletePodResponse {
-  int32 status = 1;
+    int32 status = 1;
 }
 
 // Service on API Server for Kubectl.
 service KubeletApiServerService {
-  rpc CreatePod(KubeletCreatePodRequest) returns(KubeletCreatePodResponse);
-  rpc DeletePod(KubeletDeletePodRequest) returns(KubeletDeletePodResponse);
+    rpc NotifyRegistered(NotifyRegisteredRequest) returns(NotifyRegisteredResponse);
+    rpc CreatePod(KubeletCreatePodRequest) returns(KubeletCreatePodResponse);
+    rpc DeletePod(KubeletDeletePodRequest) returns(KubeletDeletePodResponse);
 }

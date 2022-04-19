@@ -1,0 +1,6 @@
+kind: Node
+metadata:
+  name: test-node
+status:
+  address: localhost
+  port: 1234

@@ -20,8 +20,17 @@ message DeletePodResponse {
   int32 status = 1;
 }
 
+message RegisterNodeRequest {
+  bytes node = 1;
+}
+
+message RegisterNodeResponse {
+  int32 status = 1;
+}
+
 // Service on API Server for Kubectl.
 service ApiServerCtlService {
   rpc CreatePod(CreatePodRequest) returns(CreatePodResponse);
   rpc DeletePod(DeletePodRequest) returns(DeletePodResponse);
+  rpc RegisterNode(RegisterNodeRequest) returns(RegisterNodeResponse);
 }

@@ -42,6 +42,8 @@ Examples:
 			switch configKind.Kind {
 			case "Pod":
 				applyPod(data)
+			case "Node":
+				applyNode(data)
 			default:
 				log.Fatalf("%v is not supported", configKind.Kind)
 			}
@@ -62,11 +64,25 @@ func applyPod(data []byte) {
 	if err != nil {
 		log.Fatalf("cannot unmarshal data: %v", err)
 	}
-	fmt.Printf("pod configuration got is %#v\n", pod)
+	fmt.Printf("pod configuration got is %+v\n", pod)
 	client := client.NewCtlClient()
 	response, err := client.CreatePod(&pod)
 	if err != nil {
 		log.Fatal(err)
 	}
 	fmt.Printf("Response status: %v ;Pod created\n", response.Status)
+}
+
+func applyNode(data []byte) {
+	var node core.Node
+	err := yaml.Unmarshal(data, &node)
+	if err != nil {
+		log.Fatalf("cannot unmarshal data: %v", err)
+	}
+	client := client.NewCtlClient()
+	response, err := client.RegisterNode(&node)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response status: %v ;Node created\n", response.Status)
 }

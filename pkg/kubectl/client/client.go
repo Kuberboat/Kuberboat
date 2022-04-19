@@ -4,9 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"time"
 
-	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"p9t.io/kuberboat/pkg/api/core"
@@ -23,10 +23,10 @@ type ctlClient struct {
 }
 
 func NewCtlClient() *ctlClient {
-	addr := fmt.Sprint("localhost:", APISERVER_PORT)
+	addr := fmt.Sprintf("%v:%v", APISERVER_URL, APISERVER_PORT)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		glog.Fatal("Kubectl client failed to connect to api server")
+		log.Fatal("Kubectl client failed to connect to api server")
 	}
 	return &ctlClient{
 		connection: conn,
@@ -51,5 +51,17 @@ func (c *ctlClient) DeletePod(podName string) (*pb.DeletePodResponse, error) {
 	defer cancel()
 	return c.client.DeletePod(ctx, &pb.DeletePodRequest{
 		PodName: podName,
+	})
+}
+
+func (c *ctlClient) RegisterNode(node *core.Node) (*pb.RegisterNodeResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	data, err := json.Marshal(node)
+	if err != nil {
+		return &pb.RegisterNodeResponse{Status: 1}, err
+	}
+	return c.client.RegisterNode(ctx, &pb.RegisterNodeRequest{
+		Node: data,
 	})
 }

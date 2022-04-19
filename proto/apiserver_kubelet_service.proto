@@ -4,15 +4,6 @@ package apiserver_kubelet_service;
 
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
-message RegisterNodeRequest {
-    
-}
-
-message RegisterNodeResponse {
-    int32 status = 1;
-}
-
-// Service on API Server for Kubeclet.
+// Service on API Server for Kubelet.
 service ApiServerKubeletService {
-    rpc RegisterNode(RegisterNodeRequest) returns(RegisterNodeResponse);
 }

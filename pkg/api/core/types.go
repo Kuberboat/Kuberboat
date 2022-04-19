@@ -252,6 +252,8 @@ type NodeStatus struct {
 	// Address is the IPV4 address of the node. Currently, we only support node address
 	// represented in IPV4.
 	Address string
+	// Port of the grpc server on node
+	Port uint16
 }
 
 // Node represents a host machine where Pods are actually running.
@@ -259,7 +261,7 @@ type Node struct {
 	// The type of a node is Node.
 	Kind
 	// Standard object's metadata.
-	ObjectMeta
+	ObjectMeta `yaml:"metadata"`
 	// Specification of the desired behavior of the node.
 	Spec NodeSpec
 	// Most recently observed status of the node.
