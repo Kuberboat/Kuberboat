@@ -18,6 +18,19 @@ type server struct {
 	pb.UnimplementedKubeletApiServerServiceServer
 }
 
+func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredRequest) (*pb.NotifyRegisteredResponse, error) {
+	var apiserver core.Cluster
+	err := json.Unmarshal(req.Apiserver, &apiserver)
+	if err != nil {
+		return &pb.NotifyRegisteredResponse{Status: -1}, err
+	}
+
+	if err = kubelet.Instance().ConnectToServer(&apiserver); err != nil {
+		return &pb.NotifyRegisteredResponse{Status: -1}, err
+	}
+	return &pb.NotifyRegisteredResponse{Status: 0}, nil
+}
+
 func (s *server) CreatePod(ctx context.Context, req *pb.KubeletCreatePodRequest) (*pb.KubeletCreatePodResponse, error) {
 	var pod core.Pod
 	err := json.Unmarshal(req.Pod, &pod)
@@ -35,15 +48,16 @@ func (s *server) DeletePod(ctx context.Context, req *pb.KubeletDeletePodRequest)
 	return &pb.KubeletDeletePodResponse{Status: 0}, nil
 }
 
-func StartServer(config *KubeletConfig) {
+func StartServer() {
 	grpcServer := grpc.NewServer()
 	pb.RegisterKubeletApiServerServiceServer(grpcServer, &server{})
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", config.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", kubelet.Port))
 	if err != nil {
 		glog.Fatal(err)
 	}
 
+	glog.Infof("kubelet server listening at port %v", kubelet.Port)
 	if err := grpcServer.Serve(lis); err != nil {
 		glog.Fatal(err)
 	}

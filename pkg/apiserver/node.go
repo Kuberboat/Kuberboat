@@ -2,19 +2,28 @@ package apiserver
 
 import (
 	"errors"
+	"fmt"
 
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver/client"
 )
 
 type NodeWithClient struct {
-	node   core.NodeStatus
+	node   *core.Node
 	client *client.ApiserverClient
 }
 
 type NodeManager interface {
+	// RegisterNode adds metadata for the node and creates grpc client to Kubelet and Kubeproxy to that node.
 	RegisterNode(node *core.Node) error
-	RegisteredNodes() []*NodeWithClient
+	// UnregisterNode is for rolling back registeration.
+	UnregisterNode(name string) error
+	// RegisterNodes returns all the node registered.
+	RegisteredNodes() []*core.Node
+	// ClientByName returns the grpc client indexed by node name.
+	ClientByName(name string) *client.ApiserverClient
+	// Empty returns true if no node is registered.
+	Empty() bool
 }
 
 type nodeManagerInner struct {
@@ -36,16 +45,36 @@ func (nm *nodeManagerInner) RegisterNode(node *core.Node) error {
 		return err
 	}
 	nm.nodes[node.Name] = &NodeWithClient{
-		node:   node.Status,
+		node:   node,
 		client: client,
 	}
 	return nil
 }
 
-func (nm *nodeManagerInner) RegisteredNodes() []*NodeWithClient {
-	registeredNodes := make([]*NodeWithClient, 0, len(nm.nodes))
+func (nm *nodeManagerInner) UnregisterNode(name string) error {
+	if _, ok := nm.nodes[name]; ok {
+		delete(nm.nodes, name)
+		return nil
+	} else {
+		return fmt.Errorf("no such node: %v", name)
+	}
+}
+
+func (nm *nodeManagerInner) RegisteredNodes() []*core.Node {
+	registeredNodes := make([]*core.Node, 0, len(nm.nodes))
 	for _, nodeWithClient := range nm.nodes {
-		registeredNodes = append(registeredNodes, nodeWithClient)
+		registeredNodes = append(registeredNodes, nodeWithClient.node)
 	}
 	return registeredNodes
+}
+
+func (nm *nodeManagerInner) ClientByName(name string) *client.ApiserverClient {
+	if nodeWithClient, ok := nm.nodes[name]; ok {
+		return nodeWithClient.client
+	}
+	return nil
+}
+
+func (nm *nodeManagerInner) Empty() bool {
+	return len(nm.nodes) == 0
 }

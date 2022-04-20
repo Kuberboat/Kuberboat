@@ -6,6 +6,7 @@
   - [Components](#components)
   - [Etcd](#etcd)
   - [Flannel](#flannel)
+  - [Kuberboat API Server](#kuberboat-api-server)
 
 ## Etcd
 
@@ -46,3 +47,9 @@ Flannel daemons obtain information about the entire network from etcd. Here we w
 ```bash
 ETCDCTL_API=2 etcdctl --endpoints=<etcd-address> set /coreos.com/network/config '{"Network": "10.17.0.0/16", "SubnetLen": 24, "SubnetMin": "10.17.0.0","SubnetMax": "10.17.255.0", "Backend": {"Type": "vxlan"}}'
 ```
+
+## Kuberboat API Server
+
+The following environment variables must be specified:
+
+- `KUBE_SERVER_IP`: Tells the server about the node public IP. It is needed by the server to inform workers of its access point.

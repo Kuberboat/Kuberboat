@@ -4,12 +4,17 @@ import (
 	"context"
 	"encoding/json"
 	"log"
+	"net"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/stretchr/testify/assert"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/peer"
+	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
@@ -45,6 +50,18 @@ var testPod = core.Pod{
 	},
 }
 
+var testNode = core.Node{
+	Kind: core.NodeType,
+	ObjectMeta: core.ObjectMeta{
+		Name:              "test-node",
+		UUID:              uuid.New(),
+		CreationTimestamp: time.Now(),
+		Labels:            map[string]string{},
+	},
+	Spec:   core.NodeSpec{},
+	Status: core.NodeStatus{},
+}
+
 // TestCreatePod must be run after kubelet is up.
 func TestCreatePod(t *testing.T) {
 	conn, err := grpc.Dial("localhost:4000", grpc.WithTransportCredentials(insecure.NewCredentials()))
@@ -64,4 +81,16 @@ func TestCreatePod(t *testing.T) {
 	if err != nil {
 		log.Fatalf("could not create pod: %v", err)
 	}
+}
+
+// TestNotifyRegistered must be run after kubelet is up.
+func TestNotifyRegistered(t *testing.T) {
+	oldServerIP := os.Getenv(api.ApiServerIP)
+	assert.NoError(t, os.Setenv(api.ApiServerIP, "localhost"))
+	// ctx simulates ctl rpc to api server.
+	ctx := peer.NewContext(context.Background(), &peer.Peer{
+		Addr: &net.IPAddr{IP: net.ParseIP("127.0.0.1")},
+	})
+	assert.NoError(t, registerNode(ctx, &testNode))
+	os.Setenv(api.ApiServerIP, oldServerIP)
 }

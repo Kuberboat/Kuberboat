@@ -60,6 +60,8 @@ const (
 	PodType Kind = "Pod"
 	// DeploymentType means the resource is a deployment.
 	DeploymentType = "Deployment"
+	// NodeType means the resource is a node.
+	NodeType = "Node"
 )
 
 // PodPhase is a label for the condition of a pod at the current time.
@@ -187,14 +189,12 @@ type PodTemplateSpec struct {
 
 // DeploymentStatus holds information about the observed status of a deployment.
 type DeploymentStatus struct {
-	// The generation observed by the deployment controller.
-	ObservedGeneration int64
 	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
-	Replicas int32
-	// Total number of ready pods targeted by this deployment that have the desired template spec.
-	UpdatedReplicas int32
+	Replicas uint32
+	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
+	UpdatedReplicas uint32
 	// Total number of ready pods targeted by this deployment.
-	ReadyReplicas int32
+	ReadyReplicas uint32
 }
 
 // Deployment is a collection of pods that are monitored. It ensures the number of pods in a deployment is stable.
@@ -215,8 +215,6 @@ type Deployment struct {
 
 // NodeSpec describes the attributes of a node.
 type NodeSpec struct {
-	// PodCIDR represents the IPV4 range assigned to the node for usage by Pods on the node.
-	PodCIDR string
 }
 
 // NodePhase is a label for the condition of a node at the current time.
@@ -252,7 +250,7 @@ type NodeStatus struct {
 	// Address is the IPV4 address of the node. Currently, we only support node address
 	// represented in IPV4.
 	Address string
-	// Port of the grpc server on node
+	// Port of the kubelet grpc server on node
 	Port uint16
 }
 

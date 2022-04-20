@@ -40,9 +40,9 @@ Examples:
 				log.Fatal("error decoding your config type")
 			}
 			switch configKind.Kind {
-			case "Pod":
+			case string(core.PodType):
 				applyPod(data)
-			case "Node":
+			case string(core.NodeType):
 				applyNode(data)
 			default:
 				log.Fatalf("%v is not supported", configKind.Kind)

@@ -2,6 +2,7 @@ package kubelet
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -9,6 +10,8 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
@@ -18,16 +21,20 @@ import (
 	dockernat "github.com/docker/go-connections/nat"
 	"p9t.io/kuberboat/pkg/api/core"
 	kubeletpod "p9t.io/kuberboat/pkg/kubelet/pod"
+	pb "p9t.io/kuberboat/pkg/proto"
 )
 
 const (
 	pauseImage         string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
 	pauseContainerName string = "pause"
+	Port                      = 4000
 )
 
 // Kubelet defines public methods of a PodManager.
 // All methods are thread safe.
 type Kubelet interface {
+	// ConnectToServer initializes grpc client to the api server.
+	ConnectToServer(cluster *core.Cluster) error
 	// GetPods returns the pods bound to the kubelet and their spec.
 	GetPods() []*core.Pod
 	// GetPodByName provides the pod that matches name, as well as whether the pod was found.
@@ -41,6 +48,8 @@ type Kubelet interface {
 
 // Kubelet is the core data structure of the component. It manages pods, containers, monitors.
 type dockerKubelet struct {
+	// Client to communicate with API server.
+	apiClient pb.ApiServerKubeletServiceClient
 	// Ensure concurrent access to inner data structures are safe.
 	mtx sync.Mutex
 	// Docker client to access docker apis.
@@ -74,6 +83,20 @@ func newKubelet() Kubelet {
 		podMetaManager:    kubeletpod.NewMetaManager(),
 		podRuntimeManager: kubeletpod.NewRuntimeManager(),
 	}
+}
+
+func (kl *dockerKubelet) ConnectToServer(cluster *core.Cluster) error {
+	if kl.apiClient != nil {
+		return errors.New("api server client alreay exists")
+	}
+	addr := fmt.Sprintf("%v:%v", cluster.Server, cluster.Port)
+	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	if err != nil {
+		return fmt.Errorf("cannot connect to api server: %v", err.Error())
+	}
+	kl.apiClient = pb.NewApiServerKubeletServiceClient(conn)
+	glog.Infof("connected to api server at %v:%v", cluster.Server, cluster.Port)
+	return nil
 }
 
 func (kl *dockerKubelet) GetPods() []*core.Pod {

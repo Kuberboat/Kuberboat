@@ -21,6 +21,5 @@ func init() {
 
 func main() {
 	flag.Parse()
-	config := app.BuildConfig(configPath)
-	app.StartServer(config)
+	app.StartServer()
 }
