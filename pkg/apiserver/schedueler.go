@@ -2,14 +2,13 @@ package apiserver
 
 import (
 	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/apiserver/client"
 )
 
 // PodScheduler selects a node to create and run a pod.
 type PodScheduler interface {
 	// SchedulePod
-	SchedulePod(pod *core.Pod) *core.Node
-	// Schedulable tells if there is any node available for scheduling.
-	Schedulable() bool
+	SchedulePod(pod *core.Pod) (*core.Node, *client.ApiserverClient)
 }
 
 type RRPodScheduler struct {
@@ -19,22 +18,19 @@ type RRPodScheduler struct {
 	nextIdx int
 }
 
-func (s *RRPodScheduler) SchedulePod(pod *core.Pod) *core.Node {
+func (s *RRPodScheduler) SchedulePod(pod *core.Pod) (*core.Node, *client.ApiserverClient) {
 	nodes := s.nodeManager.RegisteredNodes()
 	if s.nextIdx >= len(nodes) {
 		s.nextIdx = 0
 	}
 	if len(nodes) == 0 {
-		return nil
+		return nil, nil
 	} else {
-		ret := nodes[s.nextIdx]
+		node := nodes[s.nextIdx]
+		client := s.nodeManager.ClientByName(node.Name)
 		s.nextIdx++
-		return ret
+		return node, client
 	}
-}
-
-func (s *RRPodScheduler) Schedulable() bool {
-	return s.nodeManager.Empty()
 }
 
 // NewPodScheduler returns a new PodScheduler object.

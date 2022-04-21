@@ -17,6 +17,7 @@ import (
 	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
+	"p9t.io/kuberboat/pkg/apiserver/pod"
 	"p9t.io/kuberboat/pkg/kubelet"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
@@ -25,6 +26,9 @@ import (
 const APISERVER_PORT uint16 = 6443
 
 var nodeManager = apiserver.NewNodeManager()
+var componentManager = apiserver.NewComponentManager()
+var podScheduler = apiserver.NewPodScheduler(nodeManager)
+var podController = pod.NewPodController(componentManager, podScheduler)
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -37,8 +41,11 @@ func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.C
 	if err != nil {
 		return &pb.CreatePodResponse{Status: -1}, err
 	}
-	glog.Infof("server got %#v\n", pod)
-	// TODO: Create pod logic
+
+	if err = podController.CreatePod(&pod); err != nil {
+		return &pb.CreatePodResponse{Status: -1}, err
+	}
+
 	return &pb.CreatePodResponse{Status: 0}, nil
 }
 

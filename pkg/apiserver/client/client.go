@@ -38,9 +38,18 @@ func (c *ApiserverClient) NotifyRegistered(apiserver *core.Cluster) (*pb.NotifyR
 	defer cancel()
 	data, err := json.Marshal(apiserver)
 	if err != nil {
-		return &pb.NotifyRegisteredResponse{Status: 1}, err
+		return &pb.NotifyRegisteredResponse{Status: -1}, err
 	}
 	return c.kubeletClient.NotifyRegistered(ctx, &pb.NotifyRegisteredRequest{
 		Apiserver: data,
 	})
+}
+
+func (c *ApiserverClient) CreatePod(pod *core.Pod) (*pb.KubeletCreatePodResponse, error) {
+	ctx := context.Background()
+	data, err := json.Marshal(pod)
+	if err != nil {
+		return &pb.KubeletCreatePodResponse{Status: -1}, err
+	}
+	return c.kubeletClient.CreatePod(ctx, &pb.KubeletCreatePodRequest{Pod: data})
 }
