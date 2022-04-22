@@ -62,6 +62,8 @@ const (
 	DeploymentType = "Deployment"
 	// NodeType means the resource is a node.
 	NodeType = "Node"
+	// ServiceType means the resource is a service
+	ServiceType = "Service"
 )
 
 // PodPhase is a label for the condition of a pod at the current time.
@@ -182,7 +184,7 @@ type PodTemplateSpec struct {
 	// Standard object's metadata.
 	// For PodTemplateSpec, ObjectMeta provides labels and names for the pods created/
 	// UUID and CreationTimestamp is unused.
-	ObjectMeta
+	ObjectMeta `yaml:"metadata"`
 	// Specification of the desired behavior of the pod.
 	Spec PodSpec
 }
@@ -203,11 +205,11 @@ type Deployment struct {
 	Kind
 	// Standard object's metadata.
 	// For deployment, Label is unused.
-	ObjectMeta
+	ObjectMeta `yaml:"metadata"`
 	// Specification of the desired behavior of the pod.
 	// Entirely populated by the user, though there might be default values..
 	// Currently the only source of a PodSpec is a yaml file.
-	Spec DeploymentSpec
+	Spec DeploymentSpec `yaml:"spec"`
 	// DeploymentStatus is the most recently observed status of the pod.
 	// Entirely populated by the system.
 	Status DeploymentStatus

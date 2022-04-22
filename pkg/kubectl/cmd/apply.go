@@ -44,6 +44,10 @@ Examples:
 				applyPod(data)
 			case string(core.NodeType):
 				applyNode(data)
+			case string(core.DeploymentType):
+				applyDeployment(data)
+			case string(core.ServiceType):
+				applyService(data)
 			default:
 				log.Fatalf("%v is not supported", configKind.Kind)
 			}
@@ -60,8 +64,7 @@ func init() {
 
 func applyPod(data []byte) {
 	var pod core.Pod
-	err := yaml.Unmarshal(data, &pod)
-	if err != nil {
+	if err := yaml.Unmarshal(data, &pod); err != nil {
 		log.Fatalf("cannot unmarshal data: %v", err)
 	}
 	fmt.Printf("pod configuration got is %+v\n", pod)
@@ -75,8 +78,7 @@ func applyPod(data []byte) {
 
 func applyNode(data []byte) {
 	var node core.Node
-	err := yaml.Unmarshal(data, &node)
-	if err != nil {
+	if err := yaml.Unmarshal(data, &node); err != nil {
 		log.Fatalf("cannot unmarshal data: %v", err)
 	}
 	client := client.NewCtlClient()
@@ -85,4 +87,32 @@ func applyNode(data []byte) {
 		log.Fatal(err)
 	}
 	fmt.Printf("Response status: %v ;Node created\n", response.Status)
+}
+
+func applyDeployment(data []byte) {
+	var deployment core.Deployment
+	if err := yaml.Unmarshal(data, &deployment); err != nil {
+		log.Fatalf("cannot unmarshal data: %v", err)
+	}
+	fmt.Println(deployment)
+	client := client.NewCtlClient()
+	response, err := client.CreateDeployment(&deployment)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response status: %v ;Deployment created\n", response.Status)
+}
+
+func applyService(data []byte) {
+	var service core.Service
+	if err := yaml.Unmarshal(data, &service); err != nil {
+		log.Fatalf("cannot unmarshal data: %v", err)
+	}
+	fmt.Println(service)
+	client := client.NewCtlClient()
+	response, err := client.CreateService(&service)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response status: %v ;Service created\n", response.Status)
 }

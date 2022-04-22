@@ -20,12 +20,10 @@ type server struct {
 
 func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredRequest) (*pb.NotifyRegisteredResponse, error) {
 	var apiserver core.Cluster
-	err := json.Unmarshal(req.Apiserver, &apiserver)
-	if err != nil {
+	if err := json.Unmarshal(req.Apiserver, &apiserver); err != nil {
 		return &pb.NotifyRegisteredResponse{Status: -1}, err
 	}
-
-	if err = kubelet.Instance().ConnectToServer(&apiserver); err != nil {
+	if err := kubelet.Instance().ConnectToServer(&apiserver); err != nil {
 		return &pb.NotifyRegisteredResponse{Status: -1}, err
 	}
 	return &pb.NotifyRegisteredResponse{Status: 0}, nil
@@ -33,8 +31,7 @@ func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredR
 
 func (s *server) CreatePod(ctx context.Context, req *pb.KubeletCreatePodRequest) (*pb.KubeletCreatePodResponse, error) {
 	var pod core.Pod
-	err := json.Unmarshal(req.Pod, &pod)
-	if err != nil {
+	if err := json.Unmarshal(req.Pod, &pod); err != nil {
 		return &pb.KubeletCreatePodResponse{Status: -1}, err
 	}
 
