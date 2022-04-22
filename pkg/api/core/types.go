@@ -146,7 +146,7 @@ type ServicePort struct {
 	/// The port exposed by pods that are selected by this service. <ClusterIP>:<Port> will
 	/// be mapped to this port of the pods in the service. If this is not specified in user
 	/// yaml, then default to `Port`.
-	TargetPort uint16 `yaml:"targetPort"`
+	TargetPort uint16 `default:"80" yaml:"targetPort"`
 }
 
 /// ServiceSpec is the set of properties of a service.
@@ -268,18 +268,12 @@ type Node struct {
 	Status NodeStatus
 }
 
-// Cluster specifies the cluster by Server and Port
-type Cluster struct {
-	// Server is the URL of the apiserver, default is localhost
-	Server string
-	// Port is the port of the apiserver, default is 6443
-	Port uint16
-}
-
 // ClusterWithName wraps a cluster with its name
 type ClusterWithName struct {
-	// inner Cluster
-	Cluster
+	// Server is the URL of the apiserver, default is localhost
+	Server string `default:"localhost"`
+	// Port is the port of the apiserver, default is 6443
+	Port uint16 `default:"6443"`
 	// context use name to specifiy cluster
 	Name string
 }
@@ -297,7 +291,7 @@ type Config struct {
 	// The type of a config is Config
 	Kind string
 	// timeout of grpc client
-	Duration uint16
+	Duration uint16 `default:"1"`
 	// clusters can connect to
 	Clusters []ClusterWithName
 	// contexts can use

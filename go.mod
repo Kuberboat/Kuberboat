@@ -3,6 +3,7 @@ module p9t.io/kuberboat
 go 1.17
 
 require (
+	github.com/creasty/defaults v1.6.0
 	github.com/docker/docker v20.10.14+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/golang/glog v0.0.0-20160126235308-23def4e6c14b

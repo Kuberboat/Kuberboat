@@ -41,9 +41,10 @@ func init() {
 	log.SetPrefix("error: ")
 	log.SetFlags(0)
 
+	cobra.OnInitialize(buildConfig)
+
 	homePath, _ := os.UserHomeDir()
-	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", fmt.Sprintf("%s/.kube/kubectl_config.yaml", homePath), "config file (default is $HOME/kubectl_config.yaml)")
-	buildConfig()
+	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", fmt.Sprintf("%s/.kube/kubectl_config.yaml", homePath), "config file")
 	// Cobra also supports local flags, which will only run
 	// when this action is called directly.
 	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
