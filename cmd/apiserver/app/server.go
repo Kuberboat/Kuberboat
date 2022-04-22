@@ -47,18 +47,18 @@ func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.D
 	return &pb.DefaultCtlResponse{Status: 0}, nil
 }
 
-func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.DeletePodResponse, error) {
+func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.DefaultCtlResponse, error) {
 	if req.PodName == "" {
 		if err := podController.DeleteAllPods(); err != nil {
-			return &pb.DeletePodResponse{Status: -1}, err
+			return &pb.DefaultCtlResponse{Status: -1}, err
 		}
 	} else {
 		if err := podController.DeletePodByName(req.PodName); err != nil {
-			return &pb.DeletePodResponse{Status: -1}, err
+			return &pb.DefaultCtlResponse{Status: -1}, err
 		}
 	}
 
-	return &pb.DeletePodResponse{Status: 0}, nil
+	return &pb.DefaultCtlResponse{Status: 0}, nil
 }
 
 func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.DefaultCtlResponse, error) {
