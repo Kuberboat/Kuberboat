@@ -46,7 +46,8 @@ func (c *ctlClient) CreatePod(pod *core.Pod) (*pb.DefaultCtlResponse, error) {
 	})
 }
 
-func (c *ctlClient) DeletePod(podName string) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) DeletePod(podName string) (*pb.DeletePodResponse, error) {
+	// We use an empty string to represent all pods.
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	return c.client.DeletePod(ctx, &pb.DeletePodRequest{

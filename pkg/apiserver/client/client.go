@@ -53,3 +53,8 @@ func (c *ApiserverClient) CreatePod(pod *core.Pod) (*pb.KubeletCreatePodResponse
 	}
 	return c.kubeletClient.CreatePod(ctx, &pb.KubeletCreatePodRequest{Pod: data})
 }
+
+func (c *ApiserverClient) DeletePodByName(name string) (*pb.KubeletDeletePodResponse, error) {
+	ctx := context.Background()
+	return c.kubeletClient.DeletePod(ctx, &pb.KubeletDeletePodRequest{PodName: name})
+}

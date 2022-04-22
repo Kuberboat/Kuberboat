@@ -22,6 +22,8 @@ type NodeManager interface {
 	RegisteredNodes() []*core.Node
 	// ClientByName returns the grpc client indexed by node name.
 	ClientByName(name string) *client.ApiserverClient
+	// ClientByIP returns grpc client indexed by worker IP.
+	ClientByIP(ip string) *client.ApiserverClient
 	// Empty returns true if no node is registered.
 	Empty() bool
 }
@@ -71,6 +73,15 @@ func (nm *nodeManagerInner) RegisteredNodes() []*core.Node {
 func (nm *nodeManagerInner) ClientByName(name string) *client.ApiserverClient {
 	if nodeWithClient, ok := nm.nodes[name]; ok {
 		return nodeWithClient.client
+	}
+	return nil
+}
+
+func (nm *nodeManagerInner) ClientByIP(ip string) *client.ApiserverClient {
+	for _, node := range nm.nodes {
+		if node.node.Status.Address == ip {
+			return node.client
+		}
 	}
 	return nil
 }

@@ -28,7 +28,7 @@ const APISERVER_PORT uint16 = 6443
 var nodeManager = apiserver.NewNodeManager()
 var componentManager = apiserver.NewComponentManager()
 var podScheduler = apiserver.NewPodScheduler(nodeManager)
-var podController = pod.NewPodController(componentManager, podScheduler)
+var podController = pod.NewPodController(componentManager, podScheduler, nodeManager)
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -47,9 +47,18 @@ func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.D
 	return &pb.DefaultCtlResponse{Status: 0}, nil
 }
 
-func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.DefaultCtlResponse, error) {
-	// TODO: Delete pod logic
-	return &pb.DefaultCtlResponse{Status: 0}, nil
+func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.DeletePodResponse, error) {
+	if req.PodName == "" {
+		if err := podController.DeleteAllPods(); err != nil {
+			return &pb.DeletePodResponse{Status: -1}, err
+		}
+	} else {
+		if err := podController.DeletePodByName(req.PodName); err != nil {
+			return &pb.DeletePodResponse{Status: -1}, err
+		}
+	}
+
+	return &pb.DeletePodResponse{Status: 0}, nil
 }
 
 func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.DefaultCtlResponse, error) {

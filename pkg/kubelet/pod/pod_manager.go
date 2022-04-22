@@ -79,6 +79,8 @@ func (pm *basicManager) DeletePodByName(name string) {
 type RuntimeManager interface {
 	// AddPodContainer records a container as a member of a pod.
 	AddPodContainer(pod *core.Pod, name string)
+	// AddPodSandBox records the pod's pause container ID.
+	AddPodSandBox(pod *core.Pod, name string)
 	// AddPodVolume records a volume as being used by a pod.
 	AddPodVolume(pod *core.Pod, name string)
 	// DeletePodContaiers removes all containers belonging to a pod.
@@ -87,6 +89,8 @@ type RuntimeManager interface {
 	DeletePodVolumes(pod *core.Pod)
 	// ContainersByPod returns all the containers created by a pod.
 	ContainersByPod(pod *core.Pod) ([]string, bool)
+	// SandBoxByPod returns the pause container ID of the pod.
+	SandBoxByPod(pod *core.Pod) (string, bool)
 	// VolumesByPod returns all the volumes created by a pod.
 	VolumesByPod(pod *core.Pod) ([]string, bool)
 	// StringifyPodResources returns a human-readable representation of pod run time resources.
@@ -100,6 +104,9 @@ type dockerRuntimeManager struct {
 	// ContainerCreate only returns the ID, so that is what will be stored.
 	// Does not contain pause container.
 	containersByPod map[*core.Pod][]string
+	// Docker pause container ID indexed by pod.
+	// Unless error occurred while creating it, one pod should correspond to exactly one pause container.
+	sandBoxByPod map[*core.Pod]string
 	// Docker volumes indexed by pod.
 	// We only need the name to manipulate the volume.
 	volumesByPod map[*core.Pod][]string
@@ -108,6 +115,7 @@ type dockerRuntimeManager struct {
 func NewRuntimeManager() RuntimeManager {
 	return &dockerRuntimeManager{
 		containersByPod: map[*core.Pod][]string{},
+		sandBoxByPod:    map[*core.Pod]string{},
 		volumesByPod:    map[*core.Pod][]string{},
 	}
 }
@@ -118,6 +126,11 @@ func (rm *dockerRuntimeManager) AddPodContainer(pod *core.Pod, name string) {
 	rm.containersByPod[pod] = append(rm.containersByPod[pod], name)
 }
 
+func (rm *dockerRuntimeManager) AddPodSandBox(pod *core.Pod, name string) {
+	rm.mtx.Lock()
+	defer rm.mtx.Unlock()
+	rm.sandBoxByPod[pod] = name
+}
 func (rm *dockerRuntimeManager) AddPodVolume(pod *core.Pod, name string) {
 	rm.mtx.Lock()
 	defer rm.mtx.Unlock()
@@ -140,6 +153,13 @@ func (rm *dockerRuntimeManager) ContainersByPod(pod *core.Pod) ([]string, bool) 
 	rm.mtx.RLock()
 	defer rm.mtx.RUnlock()
 	c, ok := rm.containersByPod[pod]
+	return c, ok
+}
+
+func (rm *dockerRuntimeManager) SandBoxByPod(pod *core.Pod) (string, bool) {
+	rm.mtx.RLock()
+	defer rm.mtx.RUnlock()
+	c, ok := rm.sandBoxByPod[pod]
 	return c, ok
 }
 

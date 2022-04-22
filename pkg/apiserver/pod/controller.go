@@ -21,7 +21,9 @@ type Controller interface {
 	// DeletePod does the following:
 	// 		1. Modify metadata in component manager.
 	// 		2. Use grpc to inform kubelet on the node to remove the pod.
-	DeletePod(pod *core.Pod) error
+	DeletePodByName(name string) error
+	// DeleteAllPods is just a wrapper that iterates through all pods and call DeletePodByName on it.
+	DeleteAllPods() error
 }
 
 type basicController struct {
@@ -29,12 +31,15 @@ type basicController struct {
 	cm apiserver.ComponentManager
 	// ps tells which node to schedule a pod on.
 	ps apiserver.PodScheduler
+	// nm provides grpc client to pod controller.
+	nm apiserver.NodeManager
 }
 
-func NewPodController(cm apiserver.ComponentManager, ps apiserver.PodScheduler) Controller {
+func NewPodController(cm apiserver.ComponentManager, ps apiserver.PodScheduler, nm apiserver.NodeManager) Controller {
 	return &basicController{
 		cm: cm,
 		ps: ps,
+		nm: nm,
 	}
 }
 
@@ -61,8 +66,35 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	return nil
 }
 
-func (c *basicController) DeletePod(pod *core.Pod) error {
-	c.cm.DeletePodByName(pod.Name)
-	// TODO(zhidong.guo): grpc
+func (c *basicController) DeletePodByName(name string) error {
+	if !c.cm.PodExistsByName(name) {
+		return fmt.Errorf("no such pod: %v", name)
+	}
+	pod := c.cm.GetPodByName(name)
+	if pod == nil {
+		return fmt.Errorf("race condition on pod: %v", name)
+	}
+
+	ip := pod.Status.HostIP
+	client := c.nm.ClientByIP(ip)
+	if client == nil {
+		return fmt.Errorf("cannot find grpc client for worker at address: %v", ip)
+	}
+
+	_, err := client.DeletePodByName(name)
+	if err != nil {
+		return fmt.Errorf("cannot remove pod: %v", err.Error())
+	}
+	c.cm.DeletePodByName(name)
+
+	return nil
+}
+
+func (c *basicController) DeleteAllPods() error {
+	for _, pod := range c.cm.ListPods() {
+		if err := c.DeletePodByName(pod.Name); err != nil {
+			return err
+		}
+	}
 	return nil
 }

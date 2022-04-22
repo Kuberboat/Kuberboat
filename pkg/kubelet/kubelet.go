@@ -107,12 +107,7 @@ func (kl *dockerKubelet) GetPodByName(name string) (*core.Pod, bool) {
 	return kl.podMetaManager.PodByName(name)
 }
 
-func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) (err error) {
-	defer func() {
-		if err != nil {
-			kl.DeletePodByName(ctx, pod.Name)
-		}
-	}()
+func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 	if _, ok := kl.podMetaManager.PodByName(pod.Name); ok {
 		err := fmt.Errorf("pod exists already: %v", pod.Name)
 		glog.Error(err.Error())
@@ -190,6 +185,7 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 	if err != nil {
 		return err
 	}
+	kl.podRuntimeManager.AddPodSandBox(pod, resp.ID)
 
 	// Start pause container.
 	if err := cli.ContainerStart(ctx, resp.ID, dockertypes.ContainerStartOptions{}); err != nil {
@@ -349,16 +345,22 @@ func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) error
 	}
 
 	// Remove pause container.
-	pauseName := GetPodSpecificName(pod, pauseContainerName)
-	err := kl.dockerClient.ContainerStop(ctx, pauseName, nil)
-	if err != nil {
-		glog.Errorf("cannot stop pause container: %v", err.Error())
-		return err
-	}
-	err = kl.dockerClient.ContainerRemove(ctx, pauseName, dockertypes.ContainerRemoveOptions{})
-	if err != nil {
-		glog.Errorf("cannot remove pause container: %v", err.Error())
-		return err
+	pauseName, ok := kl.podRuntimeManager.SandBoxByPod(pod)
+	if !ok {
+		// This is not necessarily an internal error.
+		// Pause container may fail to launch for all sorts of reasons.
+		glog.Warningf("cannot find sandbox for pod: %v", pod.Name)
+	} else {
+		err := kl.dockerClient.ContainerStop(ctx, pauseName, nil)
+		if err != nil {
+			glog.Errorf("cannot stop pause container: %v", err.Error())
+			return err
+		}
+		err = kl.dockerClient.ContainerRemove(ctx, pauseName, dockertypes.ContainerRemoveOptions{})
+		if err != nil {
+			glog.Errorf("cannot remove pause container: %v", err.Error())
+			return err
+		}
 	}
 
 	kl.podRuntimeManager.DeletePodContainers(pod)
@@ -366,7 +368,7 @@ func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) error
 	// Remove volumes.
 	volumes, _ := kl.podRuntimeManager.VolumesByPod(pod)
 	for _, v := range volumes {
-		err = kl.dockerClient.VolumeRemove(ctx, v, true)
+		err := kl.dockerClient.VolumeRemove(ctx, v, true)
 		if err != nil {
 			glog.Errorf("cannot remove volume: %v", err.Error())
 			return err
