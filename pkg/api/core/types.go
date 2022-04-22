@@ -215,6 +215,14 @@ type Deployment struct {
 	Status DeploymentStatus
 }
 
+// The status of master node including apiserver ip and port.
+type ApiserverStatus struct {
+	// Apiserver IP
+	IP string
+	// Apiserver port
+	Port uint16
+}
+
 // NodeSpec describes the attributes of a node.
 type NodeSpec struct {
 }

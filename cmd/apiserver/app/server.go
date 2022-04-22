@@ -82,9 +82,9 @@ func registerNode(ctx context.Context, node *core.Node) error {
 	}
 
 	client := nodeManager.ClientByName(node.Name)
-	r, err := client.NotifyRegistered(&core.Cluster{
-		Server: os.Getenv(api.ApiServerIP),
-		Port:   APISERVER_PORT,
+	r, err := client.NotifyRegistered(&core.ApiserverStatus{
+		IP:   os.Getenv(api.ApiServerIP),
+		Port: APISERVER_PORT,
 	})
 	// If failed to notify worker, rollback registration.
 	if err != nil || r.Status != 0 {

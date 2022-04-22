@@ -33,7 +33,7 @@ func NewCtlClient(url string, kubeletPort uint16) (*ApiserverClient, error) {
 	}, nil
 }
 
-func (c *ApiserverClient) NotifyRegistered(apiserver *core.Cluster) (*pb.NotifyRegisteredResponse, error) {
+func (c *ApiserverClient) NotifyRegistered(apiserver *core.ApiserverStatus) (*pb.NotifyRegisteredResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	data, err := json.Marshal(apiserver)

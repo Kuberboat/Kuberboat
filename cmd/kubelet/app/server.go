@@ -19,7 +19,7 @@ type server struct {
 }
 
 func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredRequest) (*pb.NotifyRegisteredResponse, error) {
-	var apiserver core.Cluster
+	var apiserver core.ApiserverStatus
 	if err := json.Unmarshal(req.Apiserver, &apiserver); err != nil {
 		return &pb.NotifyRegisteredResponse{Status: -1}, err
 	}

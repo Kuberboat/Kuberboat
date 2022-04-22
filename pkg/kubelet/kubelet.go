@@ -34,7 +34,7 @@ const (
 // All methods are thread safe.
 type Kubelet interface {
 	// ConnectToServer initializes grpc client to the api server.
-	ConnectToServer(cluster *core.Cluster) error
+	ConnectToServer(cluster *core.ApiserverStatus) error
 	// GetPods returns the pods bound to the kubelet and their spec.
 	GetPods() []*core.Pod
 	// GetPodByName provides the pod that matches name, as well as whether the pod was found.
@@ -85,17 +85,17 @@ func newKubelet() Kubelet {
 	}
 }
 
-func (kl *dockerKubelet) ConnectToServer(cluster *core.Cluster) error {
+func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) error {
 	if kl.apiClient != nil {
 		return errors.New("api server client alreay exists")
 	}
-	addr := fmt.Sprintf("%v:%v", cluster.Server, cluster.Port)
+	addr := fmt.Sprintf("%v:%v", apiserverStatus.IP, apiserverStatus.Port)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return fmt.Errorf("cannot connect to api server: %v", err.Error())
 	}
 	kl.apiClient = pb.NewApiServerKubeletServiceClient(conn)
-	glog.Infof("connected to api server at %v:%v", cluster.Server, cluster.Port)
+	glog.Infof("connected to api server at %v:%v", apiserverStatus.IP, apiserverStatus.Port)
 	return nil
 }
 
