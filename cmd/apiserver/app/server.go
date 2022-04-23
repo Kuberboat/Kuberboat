@@ -35,32 +35,32 @@ type server struct {
 	pb.UnimplementedApiServerCtlServiceServer
 }
 
-func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.DefaultCtlResponse, error) {
+func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.DefaultResponse, error) {
 	var pod core.Pod
 	if err := json.Unmarshal(req.Pod, &pod); err != nil {
-		return &pb.DefaultCtlResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
 
 	if err := podController.CreatePod(&pod); err != nil {
-		return &pb.DefaultCtlResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
-	return &pb.DefaultCtlResponse{Status: 0}, nil
+	return &pb.DefaultResponse{Status: 0}, nil
 }
 
-func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.DefaultCtlResponse, error) {
+func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.DefaultResponse, error) {
 	// TODO: Delete pod logic
-	return &pb.DefaultCtlResponse{Status: 0}, nil
+	return &pb.DefaultResponse{Status: 0}, nil
 }
 
-func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.DefaultCtlResponse, error) {
+func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.DefaultResponse, error) {
 	var node core.Node
 	if err := json.Unmarshal(req.Node, &node); err != nil {
-		return &pb.DefaultCtlResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
 	if err := registerNode(ctx, &node); err != nil {
-		return &pb.DefaultCtlResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	} else {
-		return &pb.DefaultCtlResponse{Status: 0}, nil
+		return &pb.DefaultResponse{Status: 0}, nil
 	}
 }
 
