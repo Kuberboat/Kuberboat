@@ -22,9 +22,6 @@ import (
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
-// FIXME: Move this into config file.
-const APISERVER_PORT uint16 = 6443
-
 var nodeManager = apiserver.NewNodeManager()
 var componentManager = apiserver.NewComponentManager()
 var podScheduler = apiserver.NewPodScheduler(nodeManager)
@@ -36,46 +33,38 @@ type server struct {
 }
 
 func (s *server) GetPods(ctx context.Context, req *pb.GetPodsRequest) (*pb.GetPodsResponse, error) {
-	if req.All {
-		data, err := json.Marshal(componentManager.ListPods())
-		if err != nil {
-			return &pb.GetPodsResponse{Status: -1}, err
-		}
-		return &pb.GetPodsResponse{Status: 0, Pods: data}, nil
-	} else {
-		status := int32(0)
-		foundPods := make([]*core.Pod, 0)
-		notFoundPods := make([]string, 0)
-		for _, name := range req.PodNames {
-			if !componentManager.PodExistsByName(name) {
-				status = -2
-				notFoundPods = append(notFoundPods, name)
-			} else {
-				pod := componentManager.GetPodByName(name)
-				if pod == nil {
-					glog.Errorf("pod missing event if cm claims otherwise")
-					continue
-				}
-				foundPods = append(foundPods, pod)
-			}
-		}
+	foundPods, notFoundPods := podController.GetPods(req.All, req.PodNames)
 
-		foundPodsData, err := json.Marshal(foundPods)
-		if err != nil {
-			return &pb.GetPodsResponse{Status: -1}, err
-		}
-
-		notFoundPodsData, err := json.Marshal(notFoundPods)
-		if err != nil {
-			return &pb.GetPodsResponse{Status: -1}, err
-		}
-
+	foundPodsData, err := json.Marshal(foundPods)
+	if err != nil {
 		return &pb.GetPodsResponse{
-			Status:       status,
-			Pods:         foundPodsData,
-			NotFoundPods: notFoundPodsData,
-		}, nil
+			Status:       -1,
+			Pods:         nil,
+			NotFoundPods: nil,
+		}, err
 	}
+
+	notFoundPodsData, err := json.Marshal(notFoundPods)
+	if err != nil {
+		return &pb.GetPodsResponse{
+			Status:       -1,
+			Pods:         nil,
+			NotFoundPods: nil,
+		}, err
+	}
+
+	var status int32
+	if len(notFoundPods) > 0 {
+		status = -2
+	} else {
+		status = 0
+	}
+
+	return &pb.GetPodsResponse{
+		Status:       status,
+		Pods:         foundPodsData,
+		NotFoundPods: notFoundPodsData,
+	}, nil
 }
 
 func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.DefaultResponse, error) {
@@ -144,7 +133,7 @@ func registerNode(ctx context.Context, node *core.Node) error {
 	client := nodeManager.ClientByName(node.Name)
 	r, err := client.NotifyRegistered(&core.ApiserverStatus{
 		IP:   os.Getenv(api.ApiServerIP),
-		Port: APISERVER_PORT,
+		Port: apiserver.APISERVER_PORT,
 	})
 	// If failed to notify worker, rollback registration.
 	if err != nil || r.Status != 0 {
@@ -160,7 +149,7 @@ func registerNode(ctx context.Context, node *core.Node) error {
 }
 
 func StartServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", APISERVER_PORT))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiserver.APISERVER_PORT))
 	if err != nil {
 		glog.Fatal("Api server failed to connect!")
 	}

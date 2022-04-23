@@ -8,6 +8,8 @@ import (
 	"p9t.io/kuberboat/pkg/apiserver/client"
 )
 
+const APISERVER_PORT uint16 = 6443
+
 type NodeWithClient struct {
 	node   *core.Node
 	client *client.ApiserverClient
