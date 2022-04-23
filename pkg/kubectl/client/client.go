@@ -34,19 +34,19 @@ func NewCtlClient() *ctlClient {
 	}
 }
 
-func (c *ctlClient) CreatePod(pod *core.Pod) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) CreatePod(pod *core.Pod) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	data, err := json.Marshal(pod)
 	if err != nil {
-		return &pb.DefaultCtlResponse{Status: 1}, err
+		return &pb.DefaultResponse{Status: 1}, err
 	}
 	return c.client.CreatePod(ctx, &pb.CreatePodRequest{
 		Pod: data,
 	})
 }
 
-func (c *ctlClient) DeletePod(podName string) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) DeletePod(podName string) (*pb.DefaultResponse, error) {
 	// We use an empty string to represent all pods.
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
@@ -55,19 +55,19 @@ func (c *ctlClient) DeletePod(podName string) (*pb.DefaultCtlResponse, error) {
 	})
 }
 
-func (c *ctlClient) RegisterNode(node *core.Node) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) RegisterNode(node *core.Node) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	data, err := json.Marshal(node)
 	if err != nil {
-		return &pb.DefaultCtlResponse{Status: 1}, err
+		return &pb.DefaultResponse{Status: 1}, err
 	}
 	return c.client.RegisterNode(ctx, &pb.RegisterNodeRequest{
 		Node: data,
 	})
 }
 
-func (c *ctlClient) UnregisterNode(nodeName string) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) UnregisterNode(nodeName string) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	return c.client.UnregisterNode(ctx, &pb.UnregisterNodeRequest{
@@ -75,19 +75,19 @@ func (c *ctlClient) UnregisterNode(nodeName string) (*pb.DefaultCtlResponse, err
 	})
 }
 
-func (c *ctlClient) CreateDeployment(deployment *core.Deployment) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) CreateDeployment(deployment *core.Deployment) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	data, err := json.Marshal(deployment)
 	if err != nil {
-		return &pb.DefaultCtlResponse{Status: 1}, err
+		return &pb.DefaultResponse{Status: 1}, err
 	}
 	return c.client.CreateDeployment(ctx, &pb.CreateDeploymentRequest{
 		Deployment: data,
 	})
 }
 
-func (c *ctlClient) DeleteDeployment(deploymentName string) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) DeleteDeployment(deploymentName string) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	return c.client.DeleteDeployment(ctx, &pb.DeleteDeploymentRequest{
@@ -95,19 +95,19 @@ func (c *ctlClient) DeleteDeployment(deploymentName string) (*pb.DefaultCtlRespo
 	})
 }
 
-func (c *ctlClient) CreateService(service *core.Service) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) CreateService(service *core.Service) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	data, err := json.Marshal(service)
 	if err != nil {
-		return &pb.DefaultCtlResponse{Status: 1}, err
+		return &pb.DefaultResponse{Status: 1}, err
 	}
 	return c.client.CreateService(ctx, &pb.CreateServiceRequest{
 		Service: data,
 	})
 }
 
-func (c *ctlClient) DeleteService(serviceName string) (*pb.DefaultCtlResponse, error) {
+func (c *ctlClient) DeleteService(serviceName string) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	return c.client.DeleteService(ctx, &pb.DeleteServiceRequest{
