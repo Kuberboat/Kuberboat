@@ -19,6 +19,8 @@ type ComponentManager interface {
 	GetPodByName(name string) *core.Pod
 	/// PodExistsByName checks whether a pod of a specific name exists.
 	PodExistsByName(name string) bool
+	/// ListPods lists all the pods present.
+	ListPods() []*core.Pod
 
 	/// SetDeployment sets a deployment and the pods it creates into ComponentManager. This
 	/// function will not check the existence of the deployment.
@@ -84,6 +86,14 @@ func (cm *componentManagerInner) GetPodByName(name string) *core.Pod {
 func (cm *componentManagerInner) PodExistsByName(name string) bool {
 	_, ok := cm.pods[name]
 	return ok
+}
+
+func (cm *componentManagerInner) ListPods() []*core.Pod {
+	pods := make([]*core.Pod, 0, len(cm.pods))
+	for _, pod := range cm.pods {
+		pods = append(pods, pod)
+	}
+	return pods
 }
 
 func (cm *componentManagerInner) SetDeployment(deployment *core.Deployment, pods *list.List) {

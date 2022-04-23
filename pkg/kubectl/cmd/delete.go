@@ -63,12 +63,18 @@ func init() {
 func deletePods(podNames []string) {
 	client := client.NewCtlClient()
 	if podNames == nil {
-		// TODO: delete all the pods
-	} else {
-		response, err := client.DeletePod(podNames[0]) // TODO: use DeletePods
+		response, err := client.DeletePod("")
 		if err != nil {
 			log.Fatal(err)
 		}
-		fmt.Printf("Response status: %v ;Pods deleted\n", response.Status)
+		fmt.Printf("Reponse status: %v ;Pods deleted\n", response.Status)
+	} else {
+		for _, name := range podNames {
+			response, err := client.DeletePod(name)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("Response status: %v ;Pod %v deleted\n", response.Status, name)
+		}
 	}
 }

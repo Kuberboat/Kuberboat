@@ -13,10 +13,7 @@ spec:
         - 5001
       resources:
         cpu: 1
-        memory: 128
-      commands:
-        - pwd
-        - ls -a
+        memory: 128000000
       volumeMounts:
         - name: redis-storage
           mountPath: /data/redis

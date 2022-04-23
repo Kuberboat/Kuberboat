@@ -125,5 +125,5 @@ func TestAddInvalidPod(t *testing.T) {
 	kl := Instance()
 	err = kl.AddPod(ctx, &invalidPod)
 	assert.NotNil(t, err)
-	validateCleanUp(t, kl)
+	assert.NotEmpty(t, kl.GetPods())
 }

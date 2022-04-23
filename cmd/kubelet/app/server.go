@@ -41,7 +41,7 @@ func (s *server) CreatePod(ctx context.Context, req *pb.KubeletCreatePodRequest)
 }
 
 func (s *server) DeletePod(ctx context.Context, req *pb.KubeletDeletePodRequest) (*pb.KubeletDeletePodResponse, error) {
-	go kubelet.Instance().DeletePodByName(ctx, req.PodName)
+	go kubelet.Instance().DeletePodByName(context.Background(), req.PodName)
 	return &pb.KubeletDeletePodResponse{Status: 0}, nil
 }
 
