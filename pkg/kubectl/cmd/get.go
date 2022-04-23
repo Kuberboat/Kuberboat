@@ -5,9 +5,14 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
+	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
+	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/kubectl/client"
+	pb "p9t.io/kuberboat/pkg/proto"
 )
 
 // getCmd represents the get command
@@ -53,10 +58,38 @@ func init() {
 }
 
 func getPods(podNames []string) {
-	// client := client.NewCtlClient()
+	client := client.NewCtlClient()
+	var resp *pb.GetPodsResponse
+	var err error
 	if podNames == nil {
-		// TODO: get all the pods
+		resp, err = client.GetPods(true, nil)
 	} else {
-		// TODO: get specified pods
+		resp, err = client.GetPods(false, podNames)
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var foundPods []*core.Pod
+	var notFoundPods []string
+	err = json.Unmarshal(resp.Pods, &foundPods)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// We might use some other serialization methods here.
+	prettyjson, err := json.MarshalIndent(foundPods, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(prettyjson))
+
+	if resp.Status == -2 {
+		err = json.Unmarshal(resp.NotFoundPods, &notFoundPods)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("The following pods are not found: %v\n", notFoundPods)
 	}
 }

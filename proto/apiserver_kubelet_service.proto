@@ -4,6 +4,11 @@ package apiserver_kubelet_service;
 
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
+message UpdatePodStatusRequest {
+    bytes status = 1;
+}
+
+
 // Service on API Server for Kubelet.
 service ApiServerKubeletService {
 }

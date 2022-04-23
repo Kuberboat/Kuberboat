@@ -34,6 +34,15 @@ func NewCtlClient() *ctlClient {
 	}
 }
 
+func (c *ctlClient) GetPods(all bool, names []string) (*pb.GetPodsResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	return c.client.GetPods(ctx, &pb.GetPodsRequest{
+		All:      all,
+		PodNames: names,
+	})
+}
+
 func (c *ctlClient) CreatePod(pod *core.Pod) (*pb.DefaultCtlResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()

@@ -35,6 +35,49 @@ type server struct {
 	pb.UnimplementedApiServerCtlServiceServer
 }
 
+func (s *server) GetPods(ctx context.Context, req *pb.GetPodsRequest) (*pb.GetPodsResponse, error) {
+	if req.All {
+		data, err := json.Marshal(componentManager.ListPods())
+		if err != nil {
+			return &pb.GetPodsResponse{Status: -1}, err
+		}
+		return &pb.GetPodsResponse{Status: 0, Pods: data}, nil
+	} else {
+		status := int32(0)
+		foundPods := make([]*core.Pod, 0)
+		notFoundPods := make([]string, 0)
+		for _, name := range req.PodNames {
+			if !componentManager.PodExistsByName(name) {
+				status = -2
+				notFoundPods = append(notFoundPods, name)
+			} else {
+				pod := componentManager.GetPodByName(name)
+				if pod == nil {
+					glog.Errorf("pod missing event if cm claims otherwise")
+					continue
+				}
+				foundPods = append(foundPods, pod)
+			}
+		}
+
+		foundPodsData, err := json.Marshal(foundPods)
+		if err != nil {
+			return &pb.GetPodsResponse{Status: -1}, err
+		}
+
+		notFoundPodsData, err := json.Marshal(notFoundPods)
+		if err != nil {
+			return &pb.GetPodsResponse{Status: -1}, err
+		}
+
+		return &pb.GetPodsResponse{
+			Status:       status,
+			Pods:         foundPodsData,
+			NotFoundPods: notFoundPodsData,
+		}, nil
+	}
+}
+
 func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.DefaultCtlResponse, error) {
 	var pod core.Pod
 	if err := json.Unmarshal(req.Pod, &pod); err != nil {
@@ -75,8 +118,16 @@ func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) 
 
 func registerNode(ctx context.Context, node *core.Node) error {
 	// Get node address.
+	var workerIP string
 	p, _ := peer.FromContext(ctx)
-	workerIP := strings.Split(p.Addr.String(), ":")[0]
+	workerAddr := p.Addr.String()
+	if strings.Count(workerAddr, ":") < 2 {
+		// IPv4 address
+		workerIP = strings.Split(p.Addr.String(), ":")[0]
+	} else {
+		// IPv6 address
+		workerIP = workerAddr[0:strings.LastIndex(workerAddr, ":")]
+	}
 
 	node.CreationTimestamp = time.Now()
 	node.UUID = uuid.New()
