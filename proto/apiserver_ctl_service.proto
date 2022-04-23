@@ -4,9 +4,7 @@ package apiserver_ctl_service;
 
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
-message DefaultCtlResponse {
-  int32 status = 1;
-}
+import "default.proto";
 
 message CreatePodRequest {
   bytes pod = 1;
@@ -55,12 +53,12 @@ message GetPodsResponse {
 // Service on API Server for Kubectl.
 service ApiServerCtlService {
   rpc GetPods(GetPodsRequest) returns(GetPodsResponse);
-  rpc CreatePod(CreatePodRequest) returns(DefaultCtlResponse);
-  rpc DeletePod(DeletePodRequest) returns(DefaultCtlResponse);
-  rpc RegisterNode(RegisterNodeRequest) returns(DefaultCtlResponse);
-  rpc UnregisterNode(UnregisterNodeRequest) returns(DefaultCtlResponse);
-  rpc CreateDeployment(CreateDeploymentRequest) returns(DefaultCtlResponse);
-  rpc DeleteDeployment(DeleteDeploymentRequest) returns(DefaultCtlResponse);
-  rpc CreateService(CreateServiceRequest) returns(DefaultCtlResponse);
-  rpc DeleteService(DeleteServiceRequest) returns(DefaultCtlResponse);
+  rpc CreatePod(CreatePodRequest) returns(default.DefaultResponse);
+  rpc DeletePod(DeletePodRequest) returns(default.DefaultResponse);
+  rpc RegisterNode(RegisterNodeRequest) returns(default.DefaultResponse);
+  rpc UnregisterNode(UnregisterNodeRequest) returns(default.DefaultResponse);
+  rpc CreateDeployment(CreateDeploymentRequest) returns(default.DefaultResponse);
+  rpc DeleteDeployment(DeleteDeploymentRequest) returns(default.DefaultResponse);
+  rpc CreateService(CreateServiceRequest) returns(default.DefaultResponse);
+  rpc DeleteService(DeleteServiceRequest) returns(default.DefaultResponse);
 }
