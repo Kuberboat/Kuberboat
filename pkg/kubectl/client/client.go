@@ -10,12 +10,13 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/apiserver"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
 var CONN_TIMEOUT time.Duration = time.Second
 var APISERVER_URL string = "localhost"
-var APISERVER_PORT uint16 = 6443
+var APISERVER_PORT uint16 = apiserver.APISERVER_PORT
 
 type ctlClient struct {
 	connection *grpc.ClientConn
@@ -32,6 +33,15 @@ func NewCtlClient() *ctlClient {
 		connection: conn,
 		client:     pb.NewApiServerCtlServiceClient(conn),
 	}
+}
+
+func (c *ctlClient) GetPods(all bool, names []string) (*pb.GetPodsResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	return c.client.GetPods(ctx, &pb.GetPodsRequest{
+		All:      all,
+		PodNames: names,
+	})
 }
 
 func (c *ctlClient) CreatePod(pod *core.Pod) (*pb.DefaultResponse, error) {

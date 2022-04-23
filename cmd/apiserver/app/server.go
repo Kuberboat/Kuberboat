@@ -22,9 +22,6 @@ import (
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
-// FIXME: Move this into config file.
-const APISERVER_PORT uint16 = 6443
-
 var nodeManager = apiserver.NewNodeManager()
 var componentManager = apiserver.NewComponentManager()
 var podScheduler = apiserver.NewPodScheduler(nodeManager)
@@ -33,6 +30,41 @@ var podController = pod.NewPodController(componentManager, podScheduler, nodeMan
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
 	pb.UnimplementedApiServerCtlServiceServer
+}
+
+func (s *server) GetPods(ctx context.Context, req *pb.GetPodsRequest) (*pb.GetPodsResponse, error) {
+	foundPods, notFoundPods := podController.GetPods(req.All, req.PodNames)
+
+	foundPodsData, err := json.Marshal(foundPods)
+	if err != nil {
+		return &pb.GetPodsResponse{
+			Status:       -1,
+			Pods:         nil,
+			NotFoundPods: nil,
+		}, err
+	}
+
+	notFoundPodsData, err := json.Marshal(notFoundPods)
+	if err != nil {
+		return &pb.GetPodsResponse{
+			Status:       -1,
+			Pods:         nil,
+			NotFoundPods: nil,
+		}, err
+	}
+
+	var status int32
+	if len(notFoundPods) > 0 {
+		status = -2
+	} else {
+		status = 0
+	}
+
+	return &pb.GetPodsResponse{
+		Status:       status,
+		Pods:         foundPodsData,
+		NotFoundPods: notFoundPodsData,
+	}, nil
 }
 
 func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.DefaultResponse, error) {
@@ -75,8 +107,16 @@ func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) 
 
 func registerNode(ctx context.Context, node *core.Node) error {
 	// Get node address.
+	var workerIP string
 	p, _ := peer.FromContext(ctx)
-	workerIP := strings.Split(p.Addr.String(), ":")[0]
+	workerAddr := p.Addr.String()
+	if strings.Count(workerAddr, ":") < 2 {
+		// IPv4 address
+		workerIP = strings.Split(p.Addr.String(), ":")[0]
+	} else {
+		// IPv6 address
+		workerIP = workerAddr[0:strings.LastIndex(workerAddr, ":")]
+	}
 
 	node.CreationTimestamp = time.Now()
 	node.UUID = uuid.New()
@@ -93,7 +133,7 @@ func registerNode(ctx context.Context, node *core.Node) error {
 	client := nodeManager.ClientByName(node.Name)
 	r, err := client.NotifyRegistered(&core.ApiserverStatus{
 		IP:   os.Getenv(api.ApiServerIP),
-		Port: APISERVER_PORT,
+		Port: apiserver.APISERVER_PORT,
 	})
 	// If failed to notify worker, rollback registration.
 	if err != nil || r.Status != 0 {
@@ -109,7 +149,7 @@ func registerNode(ctx context.Context, node *core.Node) error {
 }
 
 func StartServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", APISERVER_PORT))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiserver.APISERVER_PORT))
 	if err != nil {
 		glog.Fatal("Api server failed to connect!")
 	}

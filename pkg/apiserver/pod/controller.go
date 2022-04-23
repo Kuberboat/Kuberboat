@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/uuid"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 )
 
 type Controller interface {
+	// GetPods returns information about pods specified by podName.
+	// Return value is composed of pods that are found and pod names that do not exist.
+	GetPods(all bool, podNames []string) ([]*core.Pod, []string)
 	// CreatePod does the following:
 	//		1. Choose a node for the pod.
 	// 		2. Fill some system-generated properties of the pod.
@@ -40,6 +44,28 @@ func NewPodController(cm apiserver.ComponentManager, ps apiserver.PodScheduler, 
 		cm: cm,
 		ps: ps,
 		nm: nm,
+	}
+}
+
+func (c *basicController) GetPods(all bool, podNames []string) ([]*core.Pod, []string) {
+	if all {
+		return c.cm.ListPods(), make([]string, 0)
+	} else {
+		foundPods := make([]*core.Pod, 0)
+		notFoundPods := make([]string, 0)
+		for _, name := range podNames {
+			if !c.cm.PodExistsByName(name) {
+				notFoundPods = append(notFoundPods, name)
+			} else {
+				pod := c.cm.GetPodByName(name)
+				if pod == nil {
+					glog.Errorf("pod missing event if cm claims otherwise")
+					continue
+				}
+				foundPods = append(foundPods, pod)
+			}
+		}
+		return foundPods, notFoundPods
 	}
 }
 

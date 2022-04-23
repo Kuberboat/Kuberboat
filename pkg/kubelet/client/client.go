@@ -7,7 +7,7 @@ import (
 	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"p9t.io/kuberboat/cmd/apiserver/app"
+	"p9t.io/kuberboat/pkg/apiserver"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
@@ -20,7 +20,7 @@ type kubeletClient struct {
 }
 
 func NewKubeletClient() *kubeletClient {
-	addr := fmt.Sprint("localhost:", app.APISERVER_PORT)
+	addr := fmt.Sprint("localhost:", apiserver.APISERVER_PORT)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		glog.Fatal("Kubelet client failed to connect to api server")
