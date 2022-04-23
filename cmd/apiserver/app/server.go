@@ -148,6 +148,17 @@ func registerNode(ctx context.Context, node *core.Node) error {
 	return nil
 }
 
+func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusRequest) (*pb.DefaultResponse, error) {
+	var status core.PodStatus
+	if err := json.Unmarshal(req.PodStatus, &status); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	if err := podController.UpdatePodStatus(req.PodName, &status); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
 func StartServer() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiserver.APISERVER_PORT))
 	if err != nil {

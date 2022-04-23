@@ -10,8 +10,6 @@ import (
 	"sync"
 
 	"github.com/golang/glog"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
@@ -20,8 +18,8 @@ import (
 	dockerclient "github.com/docker/docker/client"
 	dockernat "github.com/docker/go-connections/nat"
 	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/kubelet/client"
 	kubeletpod "p9t.io/kuberboat/pkg/kubelet/pod"
-	pb "p9t.io/kuberboat/pkg/proto"
 )
 
 const (
@@ -49,7 +47,7 @@ type Kubelet interface {
 // Kubelet is the core data structure of the component. It manages pods, containers, monitors.
 type dockerKubelet struct {
 	// Client to communicate with API server.
-	apiClient pb.ApiServerKubeletServiceClient
+	apiClient *client.KubeletClient
 	// Ensure concurrent access to inner data structures are safe.
 	mtx sync.Mutex
 	// Docker client to access docker apis.
@@ -89,12 +87,11 @@ func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) 
 	if kl.apiClient != nil {
 		return errors.New("api server client alreay exists")
 	}
-	addr := fmt.Sprintf("%v:%v", apiserverStatus.IP, apiserverStatus.Port)
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	cli, err := client.NewKubeletClient(apiserverStatus.IP, apiserverStatus.Port)
 	if err != nil {
-		return fmt.Errorf("cannot connect to api server: %v", err.Error())
+		return err
 	}
-	kl.apiClient = pb.NewApiServerKubeletServiceClient(conn)
+	kl.apiClient = cli
 	glog.Infof("connected to api server at %v:%v", apiserverStatus.IP, apiserverStatus.Port)
 	return nil
 }
@@ -123,12 +120,16 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 	// Start sandbox pause container.
 	if err := kl.runPodSandBox(ctx, pod); err != nil {
 		glog.Errorf("cannot create sandbox: %v", err.Error())
+		pod.Status.Phase = core.PodFailed
+		kl.apiClient.UpdatePodStatus(pod)
 		return err
 	}
 
 	// Create volumes for the pod.
 	if err := kl.createPodVolumes(ctx, pod); err != nil {
 		glog.Errorf("cannot create volumes: %v", err.Error())
+		pod.Status.Phase = core.PodFailed
+		kl.apiClient.UpdatePodStatus(pod)
 		return err
 	}
 
@@ -136,9 +137,15 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 	for _, c := range pod.Spec.Containers {
 		if err := kl.runPodContainer(ctx, pod, &c); err != nil {
 			glog.Errorf("cannot create container: %v", err.Error())
+			pod.Status.Phase = core.PodFailed
+			kl.apiClient.UpdatePodStatus(pod)
 			return err
 		}
 	}
+
+	// Notify API server.
+	pod.Status.Phase = core.PodSucceeded
+	kl.apiClient.UpdatePodStatus(pod)
 
 	// TODO(yuanxin.cao): Start a monitor to monitor pod status.
 	return nil

@@ -28,6 +28,8 @@ type Controller interface {
 	DeletePodByName(name string) error
 	// DeleteAllPods is just a wrapper that iterates through all pods and call DeletePodByName on it.
 	DeleteAllPods() error
+	// UpdatePodStatus updates the status of a pod when API server is notified by Kubelet.
+	UpdatePodStatus(podName string, podStatus *core.PodStatus) error
 }
 
 type basicController struct {
@@ -122,5 +124,20 @@ func (c *basicController) DeleteAllPods() error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (c *basicController) UpdatePodStatus(podName string, podStatus *core.PodStatus) error {
+	if !c.cm.PodExistsByName(podName) {
+		return fmt.Errorf("no such pod: %v", podName)
+	}
+
+	pod := c.cm.GetPodByName(podName)
+	if pod == nil {
+		return fmt.Errorf("race condition on pod: %v", podName)
+	}
+
+	pod.Status = *podStatus
+
 	return nil
 }

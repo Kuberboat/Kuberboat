@@ -4,6 +4,15 @@ package apiserver_kubelet_service;
 
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
+import "default.proto";
+
+// When Kubelet finished creating a pod, it should report pod IP back to API server.
+message UpdatePodStatusRequest {
+    string pod_name = 1;
+    bytes pod_status = 2;
+}
+
 // Service on API Server for Kubelet.
 service ApiServerKubeletService {
+    rpc UpdatePodStatus(UpdatePodStatusRequest) returns(default.DefaultResponse);
 }

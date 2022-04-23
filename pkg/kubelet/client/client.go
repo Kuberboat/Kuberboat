@@ -1,32 +1,45 @@
 package client
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
-	"github.com/golang/glog"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
-	"p9t.io/kuberboat/pkg/apiserver"
+	"p9t.io/kuberboat/pkg/api/core"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
-// FIXME: Move this into config file.
 const CONN_TIMEOUT time.Duration = time.Second
 
-type kubeletClient struct {
+type KubeletClient struct {
 	connection *grpc.ClientConn
 	client     pb.ApiServerKubeletServiceClient
 }
 
-func NewKubeletClient() *kubeletClient {
-	addr := fmt.Sprint("localhost:", apiserver.APISERVER_PORT)
+func NewKubeletClient(apiserverIP string, apiserverPort uint16) (*KubeletClient, error) {
+	addr := fmt.Sprintf("%v:%v", apiserverIP, apiserverPort)
 	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
-		glog.Fatal("Kubelet client failed to connect to api server")
+		return nil, fmt.Errorf("cannot connect to api server: %v", err.Error())
 	}
-	return &kubeletClient{
+	return &KubeletClient{
 		connection: conn,
 		client:     pb.NewApiServerKubeletServiceClient(conn),
+	}, nil
+}
+
+func (c *KubeletClient) UpdatePodStatus(pod *core.Pod) (*pb.DefaultResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	status, err := json.Marshal(pod.Status)
+	if err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
 	}
+	return c.client.UpdatePodStatus(ctx, &pb.UpdatePodStatusRequest{
+		PodName:   pod.Name,
+		PodStatus: status,
+	})
 }

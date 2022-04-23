@@ -18,31 +18,31 @@ type server struct {
 	pb.UnimplementedKubeletApiServerServiceServer
 }
 
-func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredRequest) (*pb.NotifyRegisteredResponse, error) {
+func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredRequest) (*pb.DefaultResponse, error) {
 	var apiserver core.ApiserverStatus
 	if err := json.Unmarshal(req.Apiserver, &apiserver); err != nil {
-		return &pb.NotifyRegisteredResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
 	if err := kubelet.Instance().ConnectToServer(&apiserver); err != nil {
-		return &pb.NotifyRegisteredResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
-	return &pb.NotifyRegisteredResponse{Status: 0}, nil
+	return &pb.DefaultResponse{Status: 0}, nil
 }
 
-func (s *server) CreatePod(ctx context.Context, req *pb.KubeletCreatePodRequest) (*pb.KubeletCreatePodResponse, error) {
+func (s *server) CreatePod(ctx context.Context, req *pb.KubeletCreatePodRequest) (*pb.DefaultResponse, error) {
 	var pod core.Pod
 	if err := json.Unmarshal(req.Pod, &pod); err != nil {
-		return &pb.KubeletCreatePodResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
 
 	go kubelet.Instance().AddPod(context.Background(), &pod)
 
-	return &pb.KubeletCreatePodResponse{Status: 0}, nil
+	return &pb.DefaultResponse{Status: 0}, nil
 }
 
-func (s *server) DeletePod(ctx context.Context, req *pb.KubeletDeletePodRequest) (*pb.KubeletDeletePodResponse, error) {
+func (s *server) DeletePod(ctx context.Context, req *pb.KubeletDeletePodRequest) (*pb.DefaultResponse, error) {
 	go kubelet.Instance().DeletePodByName(context.Background(), req.PodName)
-	return &pb.KubeletDeletePodResponse{Status: 0}, nil
+	return &pb.DefaultResponse{Status: 0}, nil
 }
 
 func StartServer() {

@@ -13,7 +13,6 @@ import (
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
-// FIXME: put this into config file
 var CONN_TIMEOUT time.Duration = time.Second
 
 type ApiserverClient struct {
@@ -33,28 +32,28 @@ func NewCtlClient(url string, kubeletPort uint16) (*ApiserverClient, error) {
 	}, nil
 }
 
-func (c *ApiserverClient) NotifyRegistered(apiserver *core.ApiserverStatus) (*pb.NotifyRegisteredResponse, error) {
+func (c *ApiserverClient) NotifyRegistered(apiserver *core.ApiserverStatus) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
 	data, err := json.Marshal(apiserver)
 	if err != nil {
-		return &pb.NotifyRegisteredResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
 	return c.kubeletClient.NotifyRegistered(ctx, &pb.NotifyRegisteredRequest{
 		Apiserver: data,
 	})
 }
 
-func (c *ApiserverClient) CreatePod(pod *core.Pod) (*pb.KubeletCreatePodResponse, error) {
+func (c *ApiserverClient) CreatePod(pod *core.Pod) (*pb.DefaultResponse, error) {
 	ctx := context.Background()
 	data, err := json.Marshal(pod)
 	if err != nil {
-		return &pb.KubeletCreatePodResponse{Status: -1}, err
+		return &pb.DefaultResponse{Status: -1}, err
 	}
 	return c.kubeletClient.CreatePod(ctx, &pb.KubeletCreatePodRequest{Pod: data})
 }
 
-func (c *ApiserverClient) DeletePodByName(name string) (*pb.KubeletDeletePodResponse, error) {
+func (c *ApiserverClient) DeletePodByName(name string) (*pb.DefaultResponse, error) {
 	ctx := context.Background()
 	return c.kubeletClient.DeletePod(ctx, &pb.KubeletDeletePodRequest{PodName: name})
 }
