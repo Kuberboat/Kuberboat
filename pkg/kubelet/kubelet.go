@@ -13,8 +13,6 @@ import (
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
-	dockerfilters "github.com/docker/docker/api/types/filters"
-	dockervolume "github.com/docker/docker/api/types/volume"
 	dockerclient "github.com/docker/docker/client"
 	dockernat "github.com/docker/go-connections/nat"
 	"p9t.io/kuberboat/pkg/api/core"
@@ -114,10 +112,10 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 	// Update pod status as Running.
 	// Note that running does not mean ready.
 	kl.podMetaManager.AddPod(pod)
-	pod.Status.Phase = core.PodReady
 	// TODO: Defer broadcasting condition variable. CV and mtx should be a member of the kubelet.
 
-	// Start sandbox pause container.
+	// Start sandbox pause container. If sandbox container fails to start, then no other container
+	// could get started and the pod will be marked as failed.
 	if err := kl.runPodSandBox(ctx, pod); err != nil {
 		glog.Errorf("cannot create sandbox: %v", err.Error())
 		pod.Status.Phase = core.PodFailed
@@ -125,26 +123,14 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 		return err
 	}
 
-	// Create volumes for the pod.
-	if err := kl.createPodVolumes(ctx, pod); err != nil {
-		glog.Errorf("cannot create volumes: %v", err.Error())
-		pod.Status.Phase = core.PodFailed
-		kl.apiClient.UpdatePodStatus(pod)
-		return err
-	}
-
-	// Start user containers.
+	// Start user containers. Here we won't care about whether the container has started successfully.
+	// This will be checked by the monitor.
 	for _, c := range pod.Spec.Containers {
-		if err := kl.runPodContainer(ctx, pod, &c); err != nil {
-			glog.Errorf("cannot create container: %v", err.Error())
-			pod.Status.Phase = core.PodFailed
-			kl.apiClient.UpdatePodStatus(pod)
-			return err
-		}
+		kl.runPodContainer(ctx, pod, &c)
 	}
 
 	// Notify API server.
-	pod.Status.Phase = core.PodSucceeded
+	pod.Status.Phase = core.PodReady
 	kl.apiClient.UpdatePodStatus(pod)
 
 	// TODO(yuanxin.cao): Start a monitor to monitor pod status.
@@ -210,46 +196,6 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 	}
 	pod.Status.PodIP = podIP
 
-	return nil
-}
-
-// createVolumes creates docker volumes for the pod.
-func (kl *dockerKubelet) createPodVolumes(ctx context.Context, pod *core.Pod) error {
-	for _, vName := range pod.Spec.Volumes {
-		// Check if target volume already exists.
-		resp, err := kl.dockerClient.VolumeList(
-			ctx,
-			dockerfilters.NewArgs(
-				dockerfilters.KeyValuePair{
-					Key: "name",
-					// Use regex for exact name matching.
-					Value: fmt.Sprintf("^%v$", vName),
-				}))
-		if err != nil {
-			return err
-		}
-
-		// If so, remove it.
-		if len(resp.Volumes) > 0 {
-			if len(resp.Volumes) > 1 {
-				return fmt.Errorf("more than 1 volumes have the name: %v", vName)
-			}
-			err = kl.dockerClient.VolumeRemove(ctx, vName, true)
-			if err != nil {
-				return err
-			}
-		}
-
-		// Create the new volume.
-		dockerVolume, err := kl.dockerClient.VolumeCreate(ctx, dockervolume.VolumeCreateBody{
-			Driver: "local",
-			Name:   vName,
-		})
-		if err != nil {
-			return err
-		}
-		kl.podRuntimeManager.AddPodVolume(pod, dockerVolume.Name)
-	}
 	return nil
 }
 
