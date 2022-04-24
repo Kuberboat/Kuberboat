@@ -1,12 +1,11 @@
 kind: Service
 metadata:
-  name: redis-replica
+  name: mypod-replica
 spec:
   ports:
     - port: 6379
       targetPort: 8080
     - port: 80  # targetPort defaults to 80
   selector:
-      app: redis
-      tier: backend
-      role: replica
+      app: mypod
+      env: dev

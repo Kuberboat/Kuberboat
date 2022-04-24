@@ -18,14 +18,19 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/pod"
+	"p9t.io/kuberboat/pkg/apiserver/service"
 	"p9t.io/kuberboat/pkg/kubelet"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
+const APISERVER_PORT uint16 = 6443
+
+// FIXME: Move the managers and controllers into a wrapper.
 var nodeManager = apiserver.NewNodeManager()
 var componentManager = apiserver.NewComponentManager()
 var podScheduler = apiserver.NewPodScheduler(nodeManager)
 var podController = pod.NewPodController(componentManager, podScheduler, nodeManager)
+var serviceController, err = service.NewServiceController(componentManager, nodeManager)
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -157,6 +162,18 @@ func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusReq
 		return &pb.DefaultResponse{Status: -1}, err
 	}
 	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (*server) CreateService(ctx context.Context, req *pb.CreateServiceRequest) (*pb.DefaultResponse, error) {
+	var service core.Service
+	if err := json.Unmarshal(req.Service, &service); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	if err := serviceController.CreateService(&service); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	} else {
+		return &pb.DefaultResponse{Status: 0}, nil
+	}
 }
 
 func StartServer() {

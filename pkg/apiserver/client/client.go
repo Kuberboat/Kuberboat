@@ -1,6 +1,7 @@
 package client
 
 import (
+	"container/list"
 	"context"
 	"encoding/json"
 	"errors"
@@ -56,4 +57,19 @@ func (c *ApiserverClient) CreatePod(pod *core.Pod) (*pb.DefaultResponse, error) 
 func (c *ApiserverClient) DeletePodByName(name string) (*pb.DefaultResponse, error) {
 	ctx := context.Background()
 	return c.kubeletClient.DeletePod(ctx, &pb.KubeletDeletePodRequest{PodName: name})
+}
+
+func (c *ApiserverClient) CreateService(service *core.Service, pods *list.List) (*pb.DefaultResponse, error) {
+	ctx := context.Background()
+	podIPs := make([]string, 0, pods.Len())
+	for it := pods.Front(); it != nil; it = it.Next() {
+		podIPs = append(podIPs, it.Value.(*core.Pod).Status.PodIP)
+	}
+	request := pb.KubeletCreateServiceRequest{
+		ServiceName: service.Name,
+		ServiceId:   service.UUID.String()[:8],
+		ClusterIp:   service.Spec.ClusterIP,
+		PodIp:       podIPs,
+	}
+	return c.kubeletClient.CreateService(ctx, &request)
 }

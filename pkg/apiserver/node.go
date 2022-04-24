@@ -26,6 +26,8 @@ type NodeManager interface {
 	ClientByName(name string) *client.ApiserverClient
 	// ClientByIP returns grpc client indexed by worker IP.
 	ClientByIP(ip string) *client.ApiserverClient
+	// Clients returns all the grpc clients for workers in the cluster.
+	Clients() []*client.ApiserverClient
 	// Empty returns true if no node is registered.
 	Empty() bool
 }
@@ -86,6 +88,14 @@ func (nm *nodeManagerInner) ClientByIP(ip string) *client.ApiserverClient {
 		}
 	}
 	return nil
+}
+
+func (nm *nodeManagerInner) Clients() []*client.ApiserverClient {
+	clients := make([]*client.ApiserverClient, 0, len(nm.nodes))
+	for _, nodeWithClient := range nm.nodes {
+		clients = append(clients, nodeWithClient.client)
+	}
+	return clients
 }
 
 func (nm *nodeManagerInner) Empty() bool {

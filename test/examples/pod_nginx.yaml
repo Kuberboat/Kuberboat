@@ -2,7 +2,7 @@ kind: Pod
 metadata:
   name: test-pod
   labels:
-    app: mypod
+    app: mypod1
     env: dev
 spec:
   containers:

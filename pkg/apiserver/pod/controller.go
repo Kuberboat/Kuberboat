@@ -33,7 +33,7 @@ type Controller interface {
 }
 
 type basicController struct {
-	// cm stores metadata of everything.
+	// cm stores the components and the dependencies between them.
 	cm apiserver.ComponentManager
 	// ps tells which node to schedule a pod on.
 	ps apiserver.PodScheduler
