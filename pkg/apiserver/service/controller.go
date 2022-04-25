@@ -22,32 +22,35 @@ type Controller interface {
 }
 
 type basicController struct {
-	// cm stores the components and the dependencies between them.
-	cm apiserver.ComponentManager
-	// nm provides grpc client to pod controller.
-	nm apiserver.NodeManager
-	// ca is responsible for assigning cluster IP to newly created service.
-	ca clusterIPAssigner
+	// componentManager stores the components and the dependencies between them.
+	componentManager apiserver.ComponentManager
+	// nodeManager provides grpc client to pod controller.
+	nodeManager apiserver.NodeManager
+	// clusterIPAssigner is responsible for assigning cluster IP to newly created service.
+	clusterIPAssigner clusterIPAssigner
 }
 
-func NewServiceController(cm apiserver.ComponentManager, nm apiserver.NodeManager) (Controller, error) {
+func NewServiceController(
+	componentManager apiserver.ComponentManager,
+	nodeManager apiserver.NodeManager,
+) (Controller, error) {
 	clusterIPAssigner, err := NewClusterIPAssigner()
 	if err != nil {
 		return nil, err
 	}
 	return &basicController{
-		cm: cm,
-		nm: nm,
-		ca: *clusterIPAssigner,
+		componentManager:  componentManager,
+		nodeManager:       nodeManager,
+		clusterIPAssigner: *clusterIPAssigner,
 	}, nil
 }
 
 func (c *basicController) CreateService(service *core.Service) error {
-	if c.cm.ServiceExistsByName(service.Name) {
+	if c.componentManager.ServiceExistsByName(service.Name) {
 		return fmt.Errorf("service already exists: %v", service.Name)
 	}
 
-	clusterIP, err := c.ca.NextClusterIP()
+	clusterIP, err := c.clusterIPAssigner.NextClusterIP()
 	if err != nil {
 		return err
 	}
@@ -55,10 +58,10 @@ func (c *basicController) CreateService(service *core.Service) error {
 	service.UUID = uuid.New()
 	service.CreationTimestamp = time.Now()
 
-	selectedPods := c.cm.ListPodsByLabelsAndPhase(&service.Spec.Selector, core.PodReady)
-	c.cm.SetService(service, selectedPods)
+	selectedPods := c.componentManager.ListPodsByLabelsAndPhase(&service.Spec.Selector, core.PodReady)
+	c.componentManager.SetService(service, selectedPods)
 
-	clients := c.nm.Clients()
+	clients := c.nodeManager.Clients()
 	errors := make(chan error, len(clients))
 	var wg sync.WaitGroup
 	wg.Add(len(clients))
