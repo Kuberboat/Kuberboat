@@ -50,6 +50,11 @@ func (s *server) CreateService(ctx context.Context, req *pb.KubeletCreateService
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
+func (s *server) DeleteService(ctx context.Context, req *pb.KubeletDeleteServiceRequest) (*pb.DefaultResponse, error) {
+	// TODO: Create service in kubelet.
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
 func StartServer() {
 	grpcServer := grpc.NewServer()
 	pb.RegisterKubeletApiServerServiceServer(grpcServer, &server{})

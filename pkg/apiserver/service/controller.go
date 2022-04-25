@@ -19,6 +19,7 @@ type Controller interface {
 	// 		3. Modify metadata in component manager.
 	//		4. Notify all the nodes in the cluster about the service creation.
 	CreateService(service *core.Service) error
+	DeleteServiceByName(name string) error
 }
 
 type basicController struct {
@@ -82,5 +83,42 @@ func (c *basicController) CreateService(service *core.Service) error {
 			return err
 		}
 	}
+	return nil
+}
+
+func (c *basicController) DeleteServiceByName(name string) error {
+	if !c.componentManager.ServiceExistsByName(name) {
+		return fmt.Errorf("no such service: %v", name)
+	}
+
+	service := c.componentManager.GetServiceByName(name)
+	if service == nil {
+		return fmt.Errorf("race condition on service: %v", name)
+	}
+
+	clients := c.nodeManager.Clients()
+	errors := make(chan error, len(clients))
+	var wg sync.WaitGroup
+	wg.Add(len(clients))
+	for _, cli := range clients {
+		go func(cli *client.ApiserverClient) {
+			defer wg.Done()
+			_, err := cli.DeleteService(name)
+			errors <- err
+		}(cli)
+	}
+	go func() {
+		wg.Wait()
+		close(errors)
+	}()
+
+	for err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+
+	c.componentManager.DeleteServiceByName(name)
+
 	return nil
 }

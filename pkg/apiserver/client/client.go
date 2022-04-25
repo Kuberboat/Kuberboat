@@ -73,3 +73,10 @@ func (c *ApiserverClient) CreateService(service *core.Service, pods *list.List) 
 	}
 	return c.kubeletClient.CreateService(ctx, &request)
 }
+
+func (c *ApiserverClient) DeleteService(serviceName string) (*pb.DefaultResponse, error) {
+	ctx := context.Background()
+	return c.kubeletClient.DeleteService(ctx, &pb.KubeletDeleteServiceRequest{
+		ServiceName: serviceName,
+	})
+}

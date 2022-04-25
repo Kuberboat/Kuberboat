@@ -20,13 +20,16 @@ var (
 		Short: "Delete resources by file names, stdin, resources and names, or by resources and label selector.",
 		Long: `Examples:
   # Delete a pod using the name
-  kubectl delete pod podName
+  kubectl delete pod <podName>
 
   # Delete specified pods
-  kubectl delete pods podName1 podName2 ...
+  kubectl delete pods <podName1> <podName2> ...
 
   # Delete all pods
-  kubectl delete pods --all`,
+  kubectl delete pods --all
+  
+  # Delete a service using the name
+  kubectl delete service <serviceName>`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			resourceType := args[0]
@@ -39,6 +42,8 @@ var (
 				} else {
 					deletePods(args[1:])
 				}
+			case "service":
+				deleteService([]string{args[1]})
 			default:
 				log.Fatalf("%v is not supported\n", resourceType)
 			}
@@ -75,6 +80,25 @@ func deletePods(podNames []string) {
 				log.Fatal(err)
 			}
 			fmt.Printf("Response status: %v ;Pod %v deleted\n", response.Status, name)
+		}
+	}
+}
+
+func deleteService(serviceNames []string) {
+	client := client.NewCtlClient()
+	if serviceNames == nil {
+		response, err := client.DeleteService("")
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("Reponse status: %v ;Services deleted\n", response.Status)
+	} else {
+		for _, name := range serviceNames {
+			response, err := client.DeleteService(name)
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("Response status: %v ;Service %v deleted\n", response.Status, name)
 		}
 	}
 }
