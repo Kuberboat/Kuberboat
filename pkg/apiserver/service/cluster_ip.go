@@ -34,7 +34,7 @@ func (ca *clusterIPAssigner) NextClusterIP() (string, error) {
 		newIP = net.IPv4(octets[0], octets[1], octets[2]+1, 0)
 	} else if octets[1]+1 != 0 {
 		newIP = net.IPv4(octets[0], octets[1]+1, 0, 0)
-	} else if octets[1]+1 != 0 {
+	} else if octets[0]+1 != 0 {
 		newIP = net.IPv4(octets[0]+1, 0, 0, 0)
 	} else {
 		return "", fmt.Errorf("no cluster ip can be assigned")
@@ -43,5 +43,8 @@ func (ca *clusterIPAssigner) NextClusterIP() (string, error) {
 		return "", fmt.Errorf("no cluster ip can be assigned")
 	}
 	ca.currentIP = newIP
+
+	// TODO: persist to etcd
+
 	return ca.currentIP.To4().String(), nil
 }

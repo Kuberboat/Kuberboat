@@ -20,7 +20,7 @@ type ComponentManager interface {
 	GetPodByName(name string) *core.Pod
 	// PodExistsByName checks whether a pod of a specific name exists.
 	PodExistsByName(name string) bool
-	/// ListPods lists all the pods present.
+	// ListPods lists all the pods present.
 	ListPods() []*core.Pod
 
 	// SetDeployment sets a deployment and the pods it creates into ComponentManager. This
@@ -55,6 +55,8 @@ type ComponentManager interface {
 	GetServiceByName(name string) *core.Service
 	// ServiceExistsByName checks whether a service of a specific name exists.
 	ServiceExistsByName(name string) bool
+	// ListServices lists all the services present.
+	ListServices() []*core.Service
 }
 
 type componentManagerInner struct {
@@ -187,4 +189,12 @@ func (cm *componentManagerInner) GetServiceByName(name string) *core.Service {
 func (cm *componentManagerInner) ServiceExistsByName(name string) bool {
 	_, ok := cm.services[name]
 	return ok
+}
+
+func (cm *componentManagerInner) ListServices() []*core.Service {
+	services := make([]*core.Service, 0, len(cm.services))
+	for _, service := range cm.services {
+		services = append(services, service)
+	}
+	return services
 }

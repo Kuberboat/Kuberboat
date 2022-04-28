@@ -60,7 +60,7 @@ var kubelet Kubelet
 
 // Instance is the access point of the singleton kubelet instance.
 // NOT thread safe.
-func Instance() Kubelet {
+func KubeletInstance() Kubelet {
 	if kubelet == nil {
 		kubelet = newKubelet()
 	}

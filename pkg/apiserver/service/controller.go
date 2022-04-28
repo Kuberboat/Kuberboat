@@ -16,10 +16,15 @@ type Controller interface {
 	// CreateService
 	// 		1. Assign cluster IP to the service.
 	// 		2. Fill some system-generated properties of the service.
-	// 		3. Modify metadata in component manager.
-	//		4. Notify all the nodes in the cluster about the service creation.
+	// 		3. Notify all the nodes in the cluster about the service creation.
+	//		4. Modify metadata in component manager.
 	CreateService(service *core.Service) error
+	// DeleteServiceByName
+	// 		1. Notify all the nodes in the cluster about the service deletion.
+	// 		2. Modify metadata in component manager.
 	DeleteServiceByName(name string) error
+	// DeleteAllServices deletes all the services by calling DeleteServiceByName.
+	DeleteAllServices() error
 }
 
 type basicController struct {
@@ -60,7 +65,6 @@ func (c *basicController) CreateService(service *core.Service) error {
 	service.CreationTimestamp = time.Now()
 
 	selectedPods := c.componentManager.ListPodsByLabelsAndPhase(&service.Spec.Selector, core.PodReady)
-	c.componentManager.SetService(service, selectedPods)
 
 	clients := c.nodeManager.Clients()
 	errors := make(chan error, len(clients))
@@ -83,6 +87,9 @@ func (c *basicController) CreateService(service *core.Service) error {
 			return err
 		}
 	}
+
+	c.componentManager.SetService(service, selectedPods)
+
 	return nil
 }
 
@@ -120,5 +127,15 @@ func (c *basicController) DeleteServiceByName(name string) error {
 
 	c.componentManager.DeleteServiceByName(name)
 
+	return nil
+}
+
+func (c *basicController) DeleteAllServices() error {
+	services := c.componentManager.ListServices()
+	for _, service := range services {
+		if err := c.DeleteServiceByName(service.Name); err != nil {
+			return err
+		}
+	}
 	return nil
 }

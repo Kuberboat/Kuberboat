@@ -20,9 +20,10 @@ message KubeletDeletePodRequest {
 
 message KubeletCreateServiceRequest {
     string service_name = 1;
-    string service_id = 2;
-    string cluster_ip = 3;
-    repeated string pod_ip = 4;
+    string cluster_ip = 2;
+    repeated bytes service_ports = 3;
+    repeated string pod_names = 4;
+    repeated string pod_ips = 5;
 }
 
 message KubeletDeleteServiceRequest {

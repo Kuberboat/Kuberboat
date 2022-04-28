@@ -102,7 +102,7 @@ func TestAddAndDeletePod(t *testing.T) {
 	flag.Parse()
 
 	ctx := context.Background()
-	kl := Instance()
+	kl := KubeletInstance()
 	if err := kl.AddPod(ctx, &testPod); err != nil {
 		validateCleanUp(t, kl)
 		glog.Fatal(err)
@@ -122,7 +122,7 @@ func TestAddInvalidPod(t *testing.T) {
 	flag.Parse()
 
 	ctx := context.Background()
-	kl := Instance()
+	kl := KubeletInstance()
 	err = kl.AddPod(ctx, &invalidPod)
 	assert.NotNil(t, err)
 	assert.NotEmpty(t, kl.GetPods())

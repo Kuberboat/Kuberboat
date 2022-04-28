@@ -146,7 +146,7 @@ type ServicePort struct {
 	// The port exposed by pods that are selected by this service. <ClusterIP>:<Port> will
 	// be mapped to this port of the pods in the service. If this is not specified in user
 	// yaml, then default to `Port`.
-	TargetPort uint16 `default:"80" yaml:"targetPort"`
+	TargetPort uint16 `yaml:"targetPort"`
 }
 
 // ServiceSpec is the set of properties of a service.

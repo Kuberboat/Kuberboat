@@ -176,9 +176,16 @@ func (*server) CreateService(ctx context.Context, req *pb.CreateServiceRequest) 
 }
 
 func (*server) DeleteService(ctx context.Context, req *pb.DeleteServiceRequest) (*pb.DefaultResponse, error) {
-	if err := serviceController.DeleteServiceByName(req.ServiceName); err != nil {
-		return &pb.DefaultResponse{Status: -1}, err
+	if req.ServiceName == "" {
+		if err := serviceController.DeleteAllServices(); err != nil {
+			return &pb.DefaultResponse{Status: -1}, err
+		}
+	} else {
+		if err := serviceController.DeleteServiceByName(req.ServiceName); err != nil {
+			return &pb.DefaultResponse{Status: -1}, err
+		}
 	}
+
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 

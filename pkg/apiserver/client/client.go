@@ -61,15 +61,27 @@ func (c *ApiserverClient) DeletePodByName(name string) (*pb.DefaultResponse, err
 
 func (c *ApiserverClient) CreateService(service *core.Service, pods *list.List) (*pb.DefaultResponse, error) {
 	ctx := context.Background()
+	servicePorts := make([][]byte, 0, len(service.Spec.Ports))
+	for _, port := range service.Spec.Ports {
+		portBytes, err := json.Marshal(port)
+		if err != nil {
+			return &pb.DefaultResponse{Status: -1}, err
+		}
+		servicePorts = append(servicePorts, portBytes)
+	}
+	podNames := make([]string, 0, pods.Len())
 	podIPs := make([]string, 0, pods.Len())
 	for it := pods.Front(); it != nil; it = it.Next() {
-		podIPs = append(podIPs, it.Value.(*core.Pod).Status.PodIP)
+		pod := it.Value.(*core.Pod)
+		podNames = append(podNames, pod.Name)
+		podIPs = append(podIPs, pod.Status.PodIP)
 	}
 	request := pb.KubeletCreateServiceRequest{
-		ServiceName: service.Name,
-		ServiceId:   service.UUID.String()[:8],
-		ClusterIp:   service.Spec.ClusterIP,
-		PodIp:       podIPs,
+		ServiceName:  service.Name,
+		ClusterIp:    service.Spec.ClusterIP,
+		ServicePorts: servicePorts,
+		PodNames:     podNames,
+		PodIps:       podIPs,
 	}
 	return c.kubeletClient.CreateService(ctx, &request)
 }

@@ -108,6 +108,12 @@ func applyService(data []byte) {
 	if err := yaml.Unmarshal(data, &service); err != nil {
 		log.Fatalf("cannot unmarshal data: %v", err)
 	}
+	// If target port is not specified, it should default to corresponding service-exposed port.
+	for i := range service.Spec.Ports {
+		if service.Spec.Ports[i].TargetPort == 0 {
+			service.Spec.Ports[i].TargetPort = service.Spec.Ports[i].Port
+		}
+	}
 	fmt.Println(service)
 	client := client.NewCtlClient()
 	response, err := client.CreateService(&service)
