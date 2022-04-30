@@ -31,12 +31,6 @@ type Contoller interface {
 	// DeleteDeploymentByName deletes the deployment and its pods.
 	// IMPORTANT: Must be called BEFORE metadata is modified, so the deployment can know what pods to delete.
 	DeleteDeploymentByName(name string) error
-	// TODO: Move the below two HandleXXX methods to a separate interface.
-	// HandlePodDeletion possibly creates new pods when a pod managed by a deployment is deleted.
-	// If the pod deleted is not under management of any deployment, do nothing.
-	HandlePodDeletion(pod *core.Pod) error
-	// HandlePodReady possibly updates deployment status if that pod is managed by a deployment.
-	HandlePodReady(pod *core.Pod)
 	// monitorDeployment checks if the status of deployments matches their specs.
 	// If not, make adjustments.
 	monitorDeployment()
@@ -60,6 +54,9 @@ func NewDeploymentController(componentManager apiserver.ComponentManager, pc pod
 			controller.monitorDeployment()
 		}
 	}()
+
+	apiserver.SubscribeToEvent(controller, apiserver.PodDeletion)
+	apiserver.SubscribeToEvent(controller, apiserver.PodReady)
 
 	return controller
 }
@@ -175,7 +172,16 @@ func (m *basicController) DeleteDeploymentByName(name string) error {
 	return nil
 }
 
-func (m *basicController) HandlePodDeletion(pod *core.Pod) error {
+func (m *basicController) HandleEvent(event apiserver.Event) {
+	switch event.Type() {
+	case apiserver.PodDeletion:
+		m.handlePodDeletion(event.(*apiserver.PodDeletionEvent).Pod)
+	case apiserver.PodReady:
+		m.handlePodReady(event.(*apiserver.PodReadyEvent).Pod)
+	}
+}
+
+func (m *basicController) handlePodDeletion(pod *core.Pod) error {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	if deployment := m.componentManager.GetDeploymentByPodName(pod.Name); deployment != nil {
@@ -188,7 +194,7 @@ func (m *basicController) HandlePodDeletion(pod *core.Pod) error {
 	}
 }
 
-func (m *basicController) HandlePodReady(pod *core.Pod) {
+func (m *basicController) handlePodReady(pod *core.Pod) {
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 	// It's not likely that the number of pods exceed the deployment's desired number, the only case being when
