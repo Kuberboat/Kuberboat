@@ -67,7 +67,6 @@ func applyPod(data []byte) {
 	if err := yaml.Unmarshal(data, &pod); err != nil {
 		log.Fatalf("cannot unmarshal data: %v", err)
 	}
-	fmt.Printf("pod configuration got is %+v\n", pod)
 	client := client.NewCtlClient()
 	response, err := client.CreatePod(&pod)
 	if err != nil {
@@ -94,7 +93,7 @@ func applyDeployment(data []byte) {
 	if err := yaml.Unmarshal(data, &deployment); err != nil {
 		log.Fatalf("cannot unmarshal data: %v", err)
 	}
-	fmt.Println(deployment)
+
 	client := client.NewCtlClient()
 	response, err := client.CreateDeployment(&deployment)
 	if err != nil {

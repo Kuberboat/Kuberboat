@@ -33,6 +33,8 @@ type ComponentManager interface {
 	GetDeploymentByName(name string) *core.Deployment
 	// DeploymentExistsByName checks whether a deployment of a specific name exists.
 	DeploymentExistsByName(name string) bool
+	// ListDeployments lists all the deployments present.
+	ListDeployments() []*core.Deployment
 
 	// ListPodsByDeployment lists all the pods given the name of a deployment. This function will not
 	// check the existence of the deployment. If the deployment does not exist, an empty array will be
@@ -141,6 +143,14 @@ func (cm *componentManagerInner) GetDeploymentByName(name string) *core.Deployme
 func (cm *componentManagerInner) DeploymentExistsByName(name string) bool {
 	_, ok := cm.deployments[name]
 	return ok
+}
+
+func (cm *componentManagerInner) ListDeployments() []*core.Deployment {
+	deployments := make([]*core.Deployment, 0, len(cm.deployments))
+	for _, deployment := range cm.deployments {
+		deployments = append(deployments, deployment)
+	}
+	return deployments
 }
 
 func (cm *componentManagerInner) ListPodsByDeploymentName(deploymentName string) *list.List {

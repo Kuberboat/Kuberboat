@@ -17,6 +17,7 @@ import (
 	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
+	"p9t.io/kuberboat/pkg/apiserver/deployment"
 	"p9t.io/kuberboat/pkg/apiserver/pod"
 	"p9t.io/kuberboat/pkg/apiserver/service"
 	"p9t.io/kuberboat/pkg/kubelet"
@@ -31,6 +32,7 @@ var componentManager = apiserver.NewComponentManager()
 var podScheduler = apiserver.NewPodScheduler(nodeManager)
 var podController = pod.NewPodController(componentManager, podScheduler, nodeManager)
 var serviceController, err = service.NewServiceController(componentManager, nodeManager)
+var deploymentController = deployment.NewDeploymentController(componentManager, podController)
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -151,6 +153,24 @@ func registerNode(ctx context.Context, node *core.Node) error {
 	node.Status.Condition = core.NodeReady
 
 	return nil
+}
+
+func (s *server) CreateDeployment(ctx context.Context, req *pb.CreateDeploymentRequest) (*pb.DefaultResponse, error) {
+	var deployment core.Deployment
+	if err := json.Unmarshal(req.Deployment, &deployment); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	if err := deploymentController.ApplyDeployment(&deployment); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (s *server) DeleteDeployment(ctx context.Context, req *pb.DeleteDeploymentRequest) (*pb.DefaultResponse, error) {
+	if err := deploymentController.DeleteDeploymentByName(req.DeploymentName); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, err
 }
 
 func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusRequest) (*pb.DefaultResponse, error) {

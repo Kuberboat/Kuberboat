@@ -56,6 +56,8 @@ var (
 				} else {
 					deleteServices(args[1:])
 				}
+			case "deployment":
+				deleteDeployments([]string{args[1]})
 			default:
 				log.Fatalf("%v is not supported\n", resourceType)
 			}
@@ -115,6 +117,18 @@ func deleteServices(serviceNames []string) {
 			} else {
 				fmt.Printf("Response status: %v ;Service %v deleted\n", response.Status, name)
 			}
+		}
+	}
+}
+
+func deleteDeployments(deploymentNames []string) {
+	client := client.NewCtlClient()
+	for _, name := range deploymentNames {
+		response, err := client.DeleteDeployment(name)
+		if err != nil {
+			log.Print(err)
+		} else {
+			fmt.Printf("Response status: %v ;Deployment %v deleted\n", response.Status, name)
 		}
 	}
 }

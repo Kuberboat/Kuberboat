@@ -191,11 +191,11 @@ type PodTemplateSpec struct {
 
 // DeploymentStatus holds information about the observed status of a deployment.
 type DeploymentStatus struct {
-	// Total number of non-terminated pods targeted by this deployment (their labels match the selector).
+	// Total number of pods created by this deployment. They need not be ready.
 	Replicas uint32
-	// Total number of non-terminated pods targeted by this deployment that have the desired template spec.
+	// Total number of ready pods created by this deployment that have the desired template spec.
 	UpdatedReplicas uint32
-	// Total number of ready pods targeted by this deployment.
+	// Total number of ready pods created by this deployment.
 	ReadyReplicas uint32
 }
 
