@@ -124,3 +124,12 @@ func (c *ctlClient) DeleteService(serviceName string) (*pb.DefaultResponse, erro
 		ServiceName: serviceName,
 	})
 }
+
+func (c *ctlClient) DescribeDeployments(all bool, names []string) (*pb.DescribeDeploymentsResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	return c.client.DescribeDeployments(ctx, &pb.DescribeDeploymentsRequest{
+		All:             all,
+		DeploymentNames: names,
+	})
+}

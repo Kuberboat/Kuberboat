@@ -209,6 +209,44 @@ func (*server) DeleteService(ctx context.Context, req *pb.DeleteServiceRequest) 
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
+func (*server) DescribeDeployments(ctx context.Context, req *pb.DescribeDeploymentsRequest) (*pb.DescribeDeploymentsResponse, error) {
+	foundDeployments, deploymentPods, notFoundDeployments := deploymentController.DescribeDeployments(req.All, req.DeploymentNames)
+	serializeErrResponse := &pb.DescribeDeploymentsResponse{
+		Status:             -1,
+		Deployments:        nil,
+		DeploymentPodNames: nil,
+	}
+
+	foundDeploymentsData, err := json.Marshal(foundDeployments)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	deploymentPodsData, err := json.Marshal(deploymentPods)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	notFoundDeploymentsData, err := json.Marshal(notFoundDeployments)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	var status int32
+	if len(notFoundDeployments) > 0 {
+		status = -2
+	} else {
+		status = 0
+	}
+
+	return &pb.DescribeDeploymentsResponse{
+		Status:              status,
+		Deployments:         foundDeploymentsData,
+		DeploymentPodNames:  deploymentPodsData,
+		NotFoundDeployments: notFoundDeploymentsData,
+	}, nil
+}
+
 func StartServer() {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiserver.APISERVER_PORT))
 	if err != nil {

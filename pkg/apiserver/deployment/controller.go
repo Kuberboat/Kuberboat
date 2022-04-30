@@ -22,6 +22,8 @@ const (
 
 // DeploymentController manages deployments.
 type Contoller interface {
+	// DescribeDeployments return all the deployments and their respective pods.
+	DescribeDeployments(all bool, names []string) ([]*core.Deployment, [][]string, []string)
 	// ApplyDeployment creates a new deployment currently no deployment with the same name exists.
 	// Otherwise, update the pods in the deployment.
 	//
@@ -59,6 +61,42 @@ func NewDeploymentController(componentManager apiserver.ComponentManager, pc pod
 	apiserver.SubscribeToEvent(controller, apiserver.PodReady)
 
 	return controller
+}
+
+func (m *basicController) DescribeDeployments(all bool, names []string) ([]*core.Deployment, [][]string, []string) {
+	getDeploymentPodNames := func(deployment *core.Deployment) []string {
+		ret := make([]string, 0)
+		pods := m.componentManager.ListPodsByDeploymentName(deployment.Name)
+		for i := pods.Front(); i != nil; i = i.Next() {
+			ret = append(ret, i.Value.(*core.Pod).Name)
+		}
+		return ret
+	}
+	deploymentPods := make([][]string, 0)
+	if all {
+		deployments := m.componentManager.ListDeployments()
+		for _, deployment := range deployments {
+			deploymentPods = append(deploymentPods, getDeploymentPodNames(deployment))
+		}
+		return deployments, deploymentPods, make([]string, 0)
+	} else {
+		foundDeployments := make([]*core.Deployment, 0)
+		notFoundDeployments := make([]string, 0)
+		for _, name := range names {
+			if !m.componentManager.DeploymentExistsByName(name) {
+				notFoundDeployments = append(notFoundDeployments, name)
+			} else {
+				deployment := m.componentManager.GetDeploymentByName(name)
+				if deployment == nil {
+					glog.Errorf("deployment missing even if cm claims otherwise")
+					continue
+				}
+				foundDeployments = append(foundDeployments, deployment)
+				deploymentPods = append(deploymentPods, getDeploymentPodNames(deployment))
+			}
+		}
+		return foundDeployments, deploymentPods, notFoundDeployments
+	}
 }
 
 func (m *basicController) ApplyDeployment(deployment *core.Deployment) error {
