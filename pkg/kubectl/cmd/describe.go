@@ -26,7 +26,13 @@ Examples:
   kubectl describe pod podName1 podName2
 
   # Describe all pods
-  kubectl describe pods`,
+  kubectl describe pods
+  
+  # Describe a deployment
+  kubectl describe deployment deploymentName1 deploymentName2
+  
+  # Describe all deployments
+  kubectl describe deployments`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		resourceType := args[0]
