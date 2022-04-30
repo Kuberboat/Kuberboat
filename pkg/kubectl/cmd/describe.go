@@ -5,10 +5,14 @@ Copyright © 2022 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 
 	"github.com/spf13/cobra"
+	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/kubectl/client"
+	pb "p9t.io/kuberboat/pkg/proto"
 )
 
 // describeCmd represents the describe command
@@ -31,10 +35,13 @@ Examples:
 			describePods(args[1:])
 		case "pods":
 			describePods(nil)
+		case "deployment":
+			describeDeployments(args[1:])
+		case "deployments":
+			describeDeployments(nil)
 		default:
 			log.Fatalf("%v is not a supported resource type", resourceType)
 		}
-		fmt.Println("describe called")
 	},
 }
 
@@ -58,5 +65,56 @@ func describePods(podNames []string) {
 		// TODO: describe all the resources
 	} else {
 		// TODO: describe specified resources
+	}
+}
+
+func describeDeployments(deploymentNames []string) {
+	type DisplayedDeployment struct {
+		Deployment *core.Deployment
+		Pods       []string
+	}
+	client := client.NewCtlClient()
+	var resp *pb.DescribeDeploymentsResponse
+	var err error
+	if deploymentNames == nil {
+		resp, err = client.DescribeDeployments(true, nil)
+	} else {
+		resp, err = client.DescribeDeployments(false, deploymentNames)
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var foundDeployments []*core.Deployment
+	var displayedDeployments []DisplayedDeployment
+	var deploymentPods [][]string
+	var notFoundDeployments []string
+	err = json.Unmarshal(resp.Deployments, &foundDeployments)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.Unmarshal(resp.DeploymentPodNames, &deploymentPods)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for index, deployment := range foundDeployments {
+		displayedDeployments = append(displayedDeployments, DisplayedDeployment{
+			Deployment: deployment,
+			Pods:       deploymentPods[index],
+		})
+	}
+	prettyjson, err := json.MarshalIndent(displayedDeployments, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(prettyjson))
+
+	if resp.Status == -2 {
+		err = json.Unmarshal(resp.NotFoundDeployments, &notFoundDeployments)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("The following deployments are not found: %v\n", notFoundDeployments)
 	}
 }
