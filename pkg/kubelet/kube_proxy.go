@@ -62,9 +62,9 @@ func (kp *kubeProxyInner) CreateService(
 	podIPs []string,
 ) error {
 	kp.mtx.Lock()
+	defer kp.mtx.Unlock()
 
 	if kp.serviceMetaManager.ServiceExists(serviceName) {
-		kp.mtx.Unlock()
 		return fmt.Errorf("service %s already exists", serviceName)
 	}
 
@@ -82,14 +82,12 @@ func (kp *kubeProxyInner) CreateService(
 			// Add a DNAT rule to the chain.
 			err := kp.iptablesClient.ApplyPodChainRules(podChainName, podIP, servicePort.TargetPort)
 			if err != nil {
-				kp.mtx.Unlock()
 				return err
 			}
 
 			// Add a rule that jumps to the chain in the service iptables chain.
 			err = kp.iptablesClient.ApplyPodChain(serviceName, serviceChainName, podName, podChainName, i+1)
 			if err != nil {
-				kp.mtx.Unlock()
 				return err
 			}
 
@@ -115,15 +113,14 @@ func (kp *kubeProxyInner) CreateService(
 
 	kp.serviceMetaManager.AddServiceClusterIP(serviceName, clusterIP)
 
-	kp.mtx.Unlock()
 	return nil
 }
 
 func (kp *kubeProxyInner) DeleteService(serviceName string) error {
 	kp.mtx.Lock()
+	defer kp.mtx.Unlock()
 
 	if !kp.serviceMetaManager.ServiceExists(serviceName) {
-		kp.mtx.Unlock()
 		return fmt.Errorf("no such service: %s", serviceName)
 	}
 
@@ -140,7 +137,6 @@ func (kp *kubeProxyInner) DeleteService(serviceName string) error {
 		for _, podChain := range podChains {
 			err := kp.iptablesClient.DeletePodChain(podChain.PodName, podChain.ChainName)
 			if err != nil {
-				kp.mtx.Unlock()
 				return err
 			}
 		}
@@ -153,6 +149,5 @@ func (kp *kubeProxyInner) DeleteService(serviceName string) error {
 	kp.serviceMetaManager.DeleteServiceChains(serviceName)
 	kp.serviceMetaManager.DeleteServiceClusterIP(serviceName)
 
-	kp.mtx.Unlock()
 	return nil
 }
