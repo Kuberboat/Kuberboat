@@ -109,20 +109,20 @@ func (cm *componentManagerInner) DeletePodByName(name string) {
 
 func (cm *componentManagerInner) GetPodByName(name string) *core.Pod {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	return cm.pods[name]
 }
 
 func (cm *componentManagerInner) PodExistsByName(name string) bool {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	_, ok := cm.pods[name]
 	return ok
 }
 
 func (cm *componentManagerInner) ListPods() []*core.Pod {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	pods := make([]*core.Pod, 0, len(cm.pods))
 	for _, pod := range cm.pods {
 		pods = append(pods, pod)
@@ -155,20 +155,20 @@ func (cm *componentManagerInner) DeleteDeploymentByName(deploymentName string) {
 
 func (cm *componentManagerInner) GetDeploymentByName(name string) *core.Deployment {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	return cm.deployments[name]
 }
 
 func (cm *componentManagerInner) DeploymentExistsByName(name string) bool {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	_, ok := cm.deployments[name]
 	return ok
 }
 
 func (cm *componentManagerInner) ListDeployments() []*core.Deployment {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	deployments := make([]*core.Deployment, 0, len(cm.deployments))
 	for _, deployment := range cm.deployments {
 		deployments = append(deployments, deployment)
@@ -178,13 +178,13 @@ func (cm *componentManagerInner) ListDeployments() []*core.Deployment {
 
 func (cm *componentManagerInner) ListPodsByDeploymentName(deploymentName string) *list.List {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	return cm.deploymentToPods[deploymentName]
 }
 
 func (cm *componentManagerInner) GetDeploymentByPodName(podName string) *core.Deployment {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	for deploymentName, pods := range cm.deploymentToPods {
 		for it := pods.Front(); it != nil; it = it.Next() {
 			pod := it.Value.(*core.Pod)
@@ -201,7 +201,7 @@ func (cm *componentManagerInner) ListPodsByLabelsAndPhase(
 	phase core.PodPhase,
 ) *list.List {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	pods := list.New()
 	for _, pod := range cm.pods {
 		if pod.Status.Phase == phase && reflect.DeepEqual(*labels, pod.Labels) {
@@ -227,20 +227,20 @@ func (cm *componentManagerInner) DeleteServiceByName(name string) {
 
 func (cm *componentManagerInner) GetServiceByName(name string) *core.Service {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	return cm.services[name]
 }
 
 func (cm *componentManagerInner) ServiceExistsByName(name string) bool {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	_, ok := cm.services[name]
 	return ok
 }
 
 func (cm *componentManagerInner) ListServices() []*core.Service {
 	cm.mtx.RLock()
-	defer cm.mtx.Unlock()
+	defer cm.mtx.RUnlock()
 	services := make([]*core.Service, 0, len(cm.services))
 	for _, service := range cm.services {
 		services = append(services, service)
