@@ -10,6 +10,7 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/client"
+	"p9t.io/kuberboat/pkg/apiserver/node"
 )
 
 type Controller interface {
@@ -31,14 +32,14 @@ type basicController struct {
 	// componentManager stores the components and the dependencies between them.
 	componentManager apiserver.ComponentManager
 	// nodeManager provides grpc client to pod controller.
-	nodeManager apiserver.NodeManager
+	nodeManager node.NodeManager
 	// clusterIPAssigner is responsible for assigning cluster IP to newly created service.
 	clusterIPAssigner clusterIPAssigner
 }
 
 func NewServiceController(
 	componentManager apiserver.ComponentManager,
-	nodeManager apiserver.NodeManager,
+	nodeManager node.NodeManager,
 ) (Controller, error) {
 	clusterIPAssigner, err := NewClusterIPAssigner()
 	if err != nil {

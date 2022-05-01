@@ -10,13 +10,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"p9t.io/kuberboat/pkg/api/core"
-	"p9t.io/kuberboat/pkg/apiserver"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
 var CONN_TIMEOUT time.Duration = time.Second
 var APISERVER_URL string = "localhost"
-var APISERVER_PORT uint16 = apiserver.APISERVER_PORT
+var APISERVER_PORT uint16 = core.APISERVER_PORT
 
 type ctlClient struct {
 	connection *grpc.ClientConn

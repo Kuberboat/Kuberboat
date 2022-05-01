@@ -16,6 +16,7 @@ import (
 	"google.golang.org/grpc/peer"
 	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/apiserver/node"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
@@ -87,10 +88,12 @@ func TestCreatePod(t *testing.T) {
 func TestNotifyRegistered(t *testing.T) {
 	oldServerIP := os.Getenv(api.ApiServerIP)
 	assert.NoError(t, os.Setenv(api.ApiServerIP, "localhost"))
+	nodeManager = node.NewNodeManager()
+	nodeController = node.NewNodeController(nodeManager)
 	// ctx simulates ctl rpc to api server.
 	ctx := peer.NewContext(context.Background(), &peer.Peer{
 		Addr: &net.IPAddr{IP: net.ParseIP("127.0.0.1")},
 	})
-	assert.NoError(t, registerNode(ctx, &testNode))
+	assert.NoError(t, nodeController.RegisterNode(ctx, &testNode))
 	os.Setenv(api.ApiServerIP, oldServerIP)
 }

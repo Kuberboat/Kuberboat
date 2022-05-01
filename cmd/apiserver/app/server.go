@@ -5,35 +5,28 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
-	"os"
-	"strings"
-	"time"
 
 	"github.com/golang/glog"
-	"github.com/google/uuid"
 
 	"google.golang.org/grpc"
-	"google.golang.org/grpc/peer"
-	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/deployment"
+	"p9t.io/kuberboat/pkg/apiserver/node"
 	"p9t.io/kuberboat/pkg/apiserver/pod"
 	"p9t.io/kuberboat/pkg/apiserver/service"
-	"p9t.io/kuberboat/pkg/kubelet"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
-const APISERVER_PORT uint16 = 6443
-
 // FIXME: Move the managers and controllers into a wrapper.
-var nodeManager = apiserver.NewNodeManager()
+var nodeManager = node.NewNodeManager()
 var componentManager = apiserver.NewComponentManager()
 var legacyManager = apiserver.NewLegacyManager(componentManager)
 var podScheduler = apiserver.NewPodScheduler(nodeManager)
 var podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
 var serviceController, err = service.NewServiceController(componentManager, nodeManager)
 var deploymentController = deployment.NewDeploymentController(componentManager, podController)
+var nodeController = node.NewNodeController(nodeManager)
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -106,54 +99,11 @@ func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) 
 	if err := json.Unmarshal(req.Node, &node); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
-	if err := registerNode(ctx, &node); err != nil {
+	if err := nodeController.RegisterNode(ctx, &node); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	} else {
 		return &pb.DefaultResponse{Status: 0}, nil
 	}
-}
-
-func registerNode(ctx context.Context, node *core.Node) error {
-	// Get node address.
-	var workerIP string
-	p, _ := peer.FromContext(ctx)
-	workerAddr := p.Addr.String()
-	if strings.Count(workerAddr, ":") < 2 {
-		// IPv4 address
-		workerIP = strings.Split(p.Addr.String(), ":")[0]
-	} else {
-		// IPv6 address
-		workerIP = workerAddr[0:strings.LastIndex(workerAddr, ":")]
-	}
-
-	node.CreationTimestamp = time.Now()
-	node.UUID = uuid.New()
-	node.Status.Phase = core.NodePending
-	node.Status.Port = kubelet.Port
-	node.Status.Address = workerIP
-	node.Status.Condition = core.NodeUnavailable
-
-	if err := nodeManager.RegisterNode(node); err != nil {
-		glog.Error(err.Error())
-		return err
-	}
-
-	client := nodeManager.ClientByName(node.Name)
-	r, err := client.NotifyRegistered(&core.ApiserverStatus{
-		IP:   os.Getenv(api.ApiServerIP),
-		Port: apiserver.APISERVER_PORT,
-	})
-	// If failed to notify worker, rollback registration.
-	if err != nil || r.Status != 0 {
-		glog.Errorf("cannot notify worker")
-		nodeManager.UnregisterNode(node.Name)
-		return err
-	}
-
-	node.Status.Phase = core.NodeRunning
-	node.Status.Condition = core.NodeReady
-
-	return nil
 }
 
 func (s *server) CreateDeployment(ctx context.Context, req *pb.CreateDeploymentRequest) (*pb.DefaultResponse, error) {
@@ -271,7 +221,7 @@ func (*server) DescribeDeployments(ctx context.Context, req *pb.DescribeDeployme
 }
 
 func StartServer() {
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", apiserver.APISERVER_PORT))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
 	if err != nil {
 		glog.Fatal("Api server failed to connect!")
 	}

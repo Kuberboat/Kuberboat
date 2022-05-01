@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
+	"p9t.io/kuberboat/pkg/apiserver/node"
 )
 
 type Controller interface {
@@ -39,7 +40,7 @@ type basicController struct {
 	// podScheduler tells which node to schedule a pod on.
 	podScheduler apiserver.PodScheduler
 	// nodeManager provides grpc client to pod controller.
-	nodeManager apiserver.NodeManager
+	nodeManager node.NodeManager
 	// legacyManager provides a means to retain pod-related information after a pod is deleted.
 	legacyManager apiserver.LegacyManager
 }
@@ -47,7 +48,7 @@ type basicController struct {
 func NewPodController(
 	componentManager apiserver.ComponentManager,
 	podScheduler apiserver.PodScheduler,
-	nodeManager apiserver.NodeManager,
+	nodeManager node.NodeManager,
 	legacyManager apiserver.LegacyManager,
 ) Controller {
 	return &basicController{
