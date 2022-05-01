@@ -44,12 +44,17 @@ type basicController struct {
 	componentManager apiserver.ComponentManager
 	// podController performs the actual creating/deleting pods.
 	podController pod.Controller
+	// expectDeletedPod is used to avoid updating deployment status twice when a deployment
+	// requests a pod to be deleted. The first update happens when issuing deletion request,
+	// and the second (if not checked) will happen in pod deletion handler.
+	expectDeletedPod map[string]struct{}
 }
 
 func NewDeploymentController(componentManager apiserver.ComponentManager, pc pod.Controller) *basicController {
 	controller := &basicController{
 		componentManager: componentManager,
 		podController:    pc,
+		expectDeletedPod: map[string]struct{}{},
 	}
 	go func() {
 		for range time.Tick(time.Second * monitorInterval) {
@@ -59,6 +64,7 @@ func NewDeploymentController(componentManager apiserver.ComponentManager, pc pod
 
 	apiserver.SubscribeToEvent(controller, apiserver.PodDeletion)
 	apiserver.SubscribeToEvent(controller, apiserver.PodReady)
+	apiserver.SubscribeToEvent(controller, apiserver.PodFail)
 
 	return controller
 }
@@ -106,7 +112,7 @@ func (m *basicController) ApplyDeployment(deployment *core.Deployment) error {
 	isDeploymentExistent := m.componentManager.DeploymentExistsByName(deployment.Name)
 	if isDeploymentExistent {
 		existingDeployment := m.componentManager.GetDeploymentByName(deployment.Name)
-		if isDeploymentUpdated(existingDeployment, deployment) {
+		if !isDeploymentUpdated(existingDeployment, deployment) {
 			// TODO(zhidong.guo): Mark the pod as being rolling updated.
 			return errors.New("rolling update not implemented")
 		} else {
@@ -172,6 +178,7 @@ func (m *basicController) fewerPods(deployment *core.Deployment, existingPods *l
 
 		// DeletePodByName will alter deployment's pod list, so no need to modify it here.
 		numPodsDeleted++
+		m.expectDeletedPod[p.Name] = struct{}{}
 		updateDeploymentStatusOnPodRemoval(deployment, p)
 		glog.Infof("DEPLOYMENT [%v]: deleted pod [%v]", deployment.Name, p.Name)
 	}
@@ -211,43 +218,62 @@ func (m *basicController) DeleteDeploymentByName(name string) error {
 }
 
 func (m *basicController) HandleEvent(event apiserver.Event) {
+	m.mtx.Lock()
+	defer m.mtx.Unlock()
+
+	var err error = nil
+
 	switch event.Type() {
 	case apiserver.PodDeletion:
-		m.handlePodDeletion(event.(*apiserver.PodDeletionEvent).Pod)
+		legacy := event.(*apiserver.PodDeletionEvent).PodLegacy
+		var deploymentName string
+		if legacy != nil {
+			deploymentName = legacy.DeploymentName
+		}
+		m.handlePodDeletion(event.(*apiserver.PodDeletionEvent).Pod, deploymentName)
 	case apiserver.PodReady:
-		m.handlePodReady(event.(*apiserver.PodReadyEvent).Pod)
+		podName := event.(*apiserver.PodReadyEvent).PodName
+		if m.componentManager.PodExistsByName(podName) {
+			err = m.handlePodReady(m.componentManager.GetPodByName(podName))
+		}
+	}
+
+	if err != nil {
+		glog.Error(err)
 	}
 }
 
-func (m *basicController) handlePodDeletion(pod *core.Pod) error {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
-	if deployment := m.componentManager.GetDeploymentByPodName(pod.Name); deployment != nil {
-		updateDeploymentStatusOnPodRemoval(deployment, pod)
-		// TODO: If the pod deletion is issued by the deployment owning the pod, we should not apply current deployment,
-		// otherwise a loop is formed.
-		return m.ApplyDeployment(deployment)
-	} else {
+func (m *basicController) handlePodDeletion(pod *core.Pod, deploymentName string) error {
+	// Avoid updating pod status twice.
+	if _, present := m.expectDeletedPod[pod.Name]; present {
+		delete(m.expectDeletedPod, pod.Name)
 		return nil
 	}
+	// If deployment is not found, then the pod must be deleted because its managing deployment is deleted.
+	if deployment := m.componentManager.GetDeploymentByName(deploymentName); deployment != nil {
+		updateDeploymentStatusOnPodRemoval(deployment, pod)
+	}
+	return nil
 }
 
-func (m *basicController) handlePodReady(pod *core.Pod) {
-	m.mtx.Lock()
-	defer m.mtx.Unlock()
+func (m *basicController) handlePodReady(pod *core.Pod) error {
+	if pod == nil {
+		return fmt.Errorf("pod is nil")
+	}
 	// It's not likely that the number of pods exceed the deployment's desired number, the only case being when
 	// the number of desired replicas is decreased by auto scaler or the user. In that case, applyDeployment will handle pod deletion.
 	if deployment := m.componentManager.GetDeploymentByPodName(pod.Name); deployment != nil {
 		deployment.Status.ReadyReplicas++
-		deployment := m.componentManager.GetDeploymentByPodName(pod.Name)
 		// If a pod becomes ready but is not updated, it could only be that the deployment template has been chaged
 		// during pod creation. And we currently have no support for this scenario.
 		if isPodUpdated(deployment, pod) {
-			deployment.Status.ReadyReplicas++
+			deployment.Status.UpdatedReplicas++
 		} else {
-			glog.Error("pod ready but is outdated")
+			return fmt.Errorf("pod ready but is outdated")
 		}
 	}
+
+	return nil
 }
 
 func (m *basicController) monitorDeployment() {

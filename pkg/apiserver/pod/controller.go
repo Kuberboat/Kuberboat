@@ -29,7 +29,8 @@ type Controller interface {
 	// DeleteAllPods is just a wrapper that iterates through all pods and call DeletePodByName on it.
 	DeleteAllPods() error
 	// UpdatePodStatus updates the status of a pod when API server is notified by Kubelet.
-	UpdatePodStatus(podName string, podStatus *core.PodStatus) error
+	// Also returns the previous state of the pod.
+	UpdatePodStatus(podName string, podStatus *core.PodStatus) (*core.PodStatus, error)
 }
 
 type basicController struct {
@@ -39,17 +40,21 @@ type basicController struct {
 	podScheduler apiserver.PodScheduler
 	// nodeManager provides grpc client to pod controller.
 	nodeManager apiserver.NodeManager
+	// legacyManager provides a means to retain pod-related information after a pod is deleted.
+	legacyManager apiserver.LegacyManager
 }
 
 func NewPodController(
 	componentManager apiserver.ComponentManager,
 	podScheduler apiserver.PodScheduler,
 	nodeManager apiserver.NodeManager,
+	legacyManager apiserver.LegacyManager,
 ) Controller {
 	return &basicController{
 		componentManager: componentManager,
 		podScheduler:     podScheduler,
 		nodeManager:      nodeManager,
+		legacyManager:    legacyManager,
 	}
 }
 
@@ -118,6 +123,8 @@ func (c *basicController) DeletePodByName(name string) error {
 	if err != nil {
 		return fmt.Errorf("cannot remove pod: %v", err.Error())
 	}
+
+	c.legacyManager.SetPodLegacy(name)
 	c.componentManager.DeletePodByName(name)
 
 	return nil
@@ -132,17 +139,18 @@ func (c *basicController) DeleteAllPods() error {
 	return nil
 }
 
-func (c *basicController) UpdatePodStatus(podName string, podStatus *core.PodStatus) error {
+func (c *basicController) UpdatePodStatus(podName string, podStatus *core.PodStatus) (*core.PodStatus, error) {
 	if !c.componentManager.PodExistsByName(podName) {
-		return fmt.Errorf("no such pod: %v", podName)
+		return nil, fmt.Errorf("no such pod: %v", podName)
 	}
 
 	pod := c.componentManager.GetPodByName(podName)
 	if pod == nil {
-		return fmt.Errorf("race condition on pod: %v", podName)
+		return nil, fmt.Errorf("race condition on pod: %v", podName)
 	}
 
+	prevStatus := pod.Status
 	pod.Status = *podStatus
 
-	return nil
+	return &prevStatus, nil
 }

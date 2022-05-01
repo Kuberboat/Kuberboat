@@ -43,3 +43,22 @@ func (c *KubeletClient) UpdatePodStatus(pod *core.Pod) (*pb.DefaultResponse, err
 		PodStatus: status,
 	})
 }
+
+func (c *KubeletClient) NotifyPodDeletion(success bool, pod *core.Pod) (*pb.DefaultResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	if !success {
+		c.client.NotifyPodDeletion(ctx, &pb.NotifyPodDeletionRequest{
+			Success:    false,
+			DeletedPod: nil,
+		})
+	}
+	podData, err := json.Marshal(pod)
+	if err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return c.client.NotifyPodDeletion(ctx, &pb.NotifyPodDeletionRequest{
+		Success:    true,
+		DeletedPod: podData,
+	})
+}

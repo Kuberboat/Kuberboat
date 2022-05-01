@@ -271,8 +271,15 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 	return nil
 }
 
-func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) error {
+func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) (err error) {
 	pod, ok := kl.podMetaManager.PodByName(name)
+	defer func(err error) {
+		var success bool = err == nil
+		if _, err := kl.apiClient.NotifyPodDeletion(success, pod); err != nil {
+			glog.Errorf("failed to notify apiserver of pod deletion: %v", err.Error())
+		}
+	}(err)
+
 	if !ok {
 		err := fmt.Errorf("pod does not exist: %v", name)
 		glog.Error(err.Error())

@@ -12,7 +12,14 @@ message UpdatePodStatusRequest {
     bytes pod_status = 2;
 }
 
+message NotifyPodDeletionRequest {
+    // delete_pod is a snapshot of the deleted pod's last observed state.
+    bool success = 1;
+    bytes deleted_pod = 2;
+}
+
 // Service on API Server for Kubelet.
 service ApiServerKubeletService {
     rpc UpdatePodStatus(UpdatePodStatusRequest) returns(default.DefaultResponse);
+    rpc NotifyPodDeletion(NotifyPodDeletionRequest) returns(default.DefaultResponse);
 }

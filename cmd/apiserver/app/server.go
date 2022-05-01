@@ -29,8 +29,9 @@ const APISERVER_PORT uint16 = 6443
 // FIXME: Move the managers and controllers into a wrapper.
 var nodeManager = apiserver.NewNodeManager()
 var componentManager = apiserver.NewComponentManager()
+var legacyManager = apiserver.NewLegacyManager(componentManager)
 var podScheduler = apiserver.NewPodScheduler(nodeManager)
-var podController = pod.NewPodController(componentManager, podScheduler, nodeManager)
+var podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
 var serviceController, err = service.NewServiceController(componentManager, nodeManager)
 var deploymentController = deployment.NewDeploymentController(componentManager, podController)
 
@@ -175,12 +176,34 @@ func (s *server) DeleteDeployment(ctx context.Context, req *pb.DeleteDeploymentR
 
 func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusRequest) (*pb.DefaultResponse, error) {
 	var status core.PodStatus
+	var prevStatus *core.PodStatus
 	if err := json.Unmarshal(req.PodStatus, &status); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
-	if err := podController.UpdatePodStatus(req.PodName, &status); err != nil {
+	if prevStatus, err = podController.UpdatePodStatus(req.PodName, &status); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
+
+	// Try to dispatch PodReadyEvent.
+	if prevStatus.Phase != core.PodReady && status.Phase == core.PodReady {
+		apiserver.Dispatch(&apiserver.PodReadyEvent{PodName: req.PodName})
+	}
+	// Try to dispatch PodFailEvent.
+	if prevStatus.Phase != core.PodFailed && status.Phase == core.PodFailed {
+		apiserver.Dispatch(&apiserver.PodFailEvent{PodName: req.PodName})
+	}
+
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (*server) NotifyPodDeletion(ctx context.Context, req *pb.NotifyPodDeletionRequest) (*pb.DefaultResponse, error) {
+	var deletedPod core.Pod
+	if err := json.Unmarshal(req.DeletedPod, &deletedPod); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	legacy := legacyManager.GetPodLegacyByName(deletedPod.Name)
+	apiserver.Dispatch(&apiserver.PodDeletionEvent{Pod: &deletedPod, PodLegacy: legacy})
+	legacyManager.DeletePodLegacyByName(deletedPod.Name)
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
