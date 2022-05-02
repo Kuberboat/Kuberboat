@@ -7,11 +7,11 @@ import (
 	"net"
 
 	"github.com/golang/glog"
-
 	"google.golang.org/grpc"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/deployment"
+	"p9t.io/kuberboat/pkg/apiserver/etcd"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 	"p9t.io/kuberboat/pkg/apiserver/pod"
 	"p9t.io/kuberboat/pkg/apiserver/service"
@@ -73,7 +73,6 @@ func (s *server) CreatePod(ctx context.Context, req *pb.CreatePodRequest) (*pb.D
 	if err := json.Unmarshal(req.Pod, &pod); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
-
 	if err := podController.CreatePod(&pod); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
@@ -121,13 +120,14 @@ func (s *server) DeleteDeployment(ctx context.Context, req *pb.DeleteDeploymentR
 	if err := deploymentController.DeleteDeploymentByName(req.DeploymentName); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
-	return &pb.DefaultResponse{Status: 0}, err
+	return &pb.DefaultResponse{Status: 0}, nil
 }
 
 func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusRequest) (*pb.DefaultResponse, error) {
 	var status core.PodStatus
 	var prevStatus *core.PodStatus
-	if err := json.Unmarshal(req.PodStatus, &status); err != nil {
+	var err error
+	if err = json.Unmarshal(req.PodStatus, &status); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
 	if prevStatus, err = podController.UpdatePodStatus(req.PodName, &status); err != nil {
@@ -220,12 +220,15 @@ func (*server) DescribeDeployments(ctx context.Context, req *pb.DescribeDeployme
 	}, nil
 }
 
-func StartServer() {
+func StartServer(etcdServers string) {
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
 	if err != nil {
 		glog.Fatal("Api server failed to connect!")
 	}
-
+	err = etcd.InitializeClient(etcdServers)
+	if err != nil {
+		glog.Fatal(err)
+	}
 	apiServer := grpc.NewServer()
 	pb.RegisterApiServerCtlServiceServer(apiServer, &server{})
 	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})

@@ -9,6 +9,7 @@ import (
 	"github.com/google/uuid"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
+	"p9t.io/kuberboat/pkg/apiserver/etcd"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 )
 
@@ -94,10 +95,12 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	pod.Status.Phase = core.PodPending
 	pod.Status.HostIP = node.Status.Address
 
+	if err := etcd.Put(fmt.Sprintf("/Pods/%s", pod.Name), pod); err != nil {
+		return err
+	}
 	c.componentManager.SetPod(pod)
 
-	_, err := client.CreatePod(pod)
-	if err != nil {
+	if _, err := client.CreatePod(pod); err != nil {
 		return err
 	}
 	glog.Infof("created pod %v on node with IP %v", pod.Name, pod.Status.HostIP)
@@ -120,11 +123,12 @@ func (c *basicController) DeletePodByName(name string) error {
 		return fmt.Errorf("cannot find grpc client for worker at address: %v", ip)
 	}
 
-	_, err := client.DeletePodByName(name)
-	if err != nil {
+	if _, err := client.DeletePodByName(name); err != nil {
 		return fmt.Errorf("cannot remove pod: %v", err.Error())
 	}
-
+	if err := etcd.Delete(fmt.Sprintf("/Pods/%s", name)); err != nil {
+		return err
+	}
 	c.legacyManager.SetPodLegacy(name)
 	c.componentManager.DeletePodByName(name)
 
@@ -133,6 +137,9 @@ func (c *basicController) DeletePodByName(name string) error {
 
 func (c *basicController) DeleteAllPods() error {
 	for _, pod := range c.componentManager.ListPods() {
+		if err := etcd.Delete(pod.Name); err != nil {
+			return err
+		}
 		if err := c.DeletePodByName(pod.Name); err != nil {
 			return err
 		}
@@ -152,6 +159,6 @@ func (c *basicController) UpdatePodStatus(podName string, podStatus *core.PodSta
 
 	prevStatus := pod.Status
 	pod.Status = *podStatus
-
-	return &prevStatus, nil
+	err := etcd.Put(fmt.Sprintf("/Pods/%s", pod.Name), pod)
+	return &prevStatus, err
 }
