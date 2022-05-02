@@ -198,7 +198,13 @@ func (m *basicController) fewerPods(deployment *core.Deployment, existingPods *l
 		updateDeploymentStatusOnPodRemoval(deployment, p)
 		glog.Infof("DEPLOYMENT [%v]: deleted pod [%v]", deployment.Name, p.Name)
 	}
-
+	etcdKey := fmt.Sprintf("/Deployments/%s/meta", deployment.Name)
+	if err := etcd.Put(etcdKey, deployment); err != nil {
+		glog.Errorf("failed to update deployment's metadata: %v", err)
+	}
+	if err := etcd.Put(etcdKey, etcd.GetPodNames(existingPods)); err != nil {
+		glog.Errorf("failed to update deployment's corresponding pods: %v", err)
+	}
 	glog.Infof("DEPLOYMENT [%v]: expected to delete %v pods, actually deleted %v", deployment.Name, numPodsToDelete, numPodsDeleted)
 }
 
@@ -270,6 +276,9 @@ func (m *basicController) handlePodDeletion(pod *core.Pod, deploymentName string
 	// If deployment is not found, then the pod must be deleted because its managing deployment is deleted.
 	if deployment := m.componentManager.GetDeploymentByName(deploymentName); deployment != nil {
 		updateDeploymentStatusOnPodRemoval(deployment, pod)
+		if err := etcd.Put(fmt.Sprintf("/Deployments/%s/meta", deploymentName), deployment); err != nil {
+			return err
+		}
 	}
 	return nil
 }

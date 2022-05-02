@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -70,6 +71,6 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 
 	node.Status.Phase = core.NodeRunning
 	node.Status.Condition = core.NodeReady
-	err = etcd.Put(node.Name, node)
+	err = etcd.Put(fmt.Sprintf("/Nodes/%s", node.Name), node)
 	return err
 }
