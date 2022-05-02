@@ -69,9 +69,17 @@ We recommend that you run Kubelet as a superuser (i.e. root or `sudo`). Otherwis
 
 ### Kubectl
 You may use the help flag to get the usage.
-```shell
+```bash
 kubectl apply -h
 kubectl get -h
 kubectl describe -h
 kubectl delete -h
 ```
+
+## All in one
+
+You should still have Prometheus and ETCD installed. Under the root directory of the project, just run 
+```bash
+./scripts/kuberboat/start_standalone.sh
+```
+You'll get a standalone Kuberboat cluster including one API Server and one Kubelet on your localhost machine. Logs could be found in `./out/log`.
