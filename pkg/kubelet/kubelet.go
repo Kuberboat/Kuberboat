@@ -21,9 +21,11 @@ import (
 )
 
 const (
-	pauseImage         string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
-	pauseContainerName string = "pause"
-	Port                      = 4000
+	pauseImage    string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
+	cadvisorImage string = "google/cadvisor:v0.33.0"
+	cadvisorPort  uint16 = 8080
+	cadvisorName  string = "kuberboat-cadvisor"
+	Port                 = 4000
 )
 
 // Kubelet defines public methods of a PodManager.
@@ -40,6 +42,8 @@ type Kubelet interface {
 	AddPod(ctx context.Context, pod *core.Pod) error
 	// DeletePodByName destroys a pod indexed by name and all its containers.
 	DeletePodByName(ctx context.Context, name string) error
+	// StartCAdvisor starts cadvisor container in Kubelet, used for monitoring the pods.
+	StartCAdvisor() error
 }
 
 // Kubelet is the core data structure of the component. It manages pods, containers, monitors.
@@ -168,7 +172,7 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 		}
 	}
 
-	pauseName := GetPodSpecificName(pod, pauseContainerName)
+	pauseName := core.GetPodSpecificPauseName(pod)
 	resp, err := cli.ContainerCreate(ctx, &dockercontainer.Config{
 		Image:        pauseImage,
 		ExposedPorts: ports,
@@ -201,7 +205,7 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 
 // runPodContainer runs a container and joins it to pod's pause container.
 func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *core.Container) error {
-	pauseContainerName := GetPodSpecificName(pod, pauseContainerName)
+	pauseContainerName := core.GetPodSpecificPauseName(pod)
 	cli := kl.dockerClient
 
 	// Pull image.
@@ -224,7 +228,7 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 	// Populate volume bindings.
 	vBinds := make([]string, 0, len(c.VolumeMounts))
 	for _, m := range c.VolumeMounts {
-		vBinds = append(vBinds, fmt.Sprintf("%v:%v", GetPodSpecificName(pod, m.Name), m.MountPath))
+		vBinds = append(vBinds, fmt.Sprintf("%v:%v", core.GetPodSpecificName(pod, m.Name), m.MountPath))
 	}
 
 	// Populate resources.
@@ -257,7 +261,7 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 		IpcMode:     dockercontainer.IpcMode(mode),
 		PidMode:     dockercontainer.PidMode(mode),
 		Resources:   resources,
-	}, nil, nil, GetPodSpecificName(pod, c.Name))
+	}, nil, nil, core.GetPodSpecificName(pod, c.Name))
 	if err != nil {
 		return err
 	}
@@ -337,5 +341,68 @@ func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) (err 
 
 	kl.podRuntimeManager.DeletePodVolumes(pod)
 
+	return nil
+}
+
+func (kl *dockerKubelet) StartCAdvisor() error {
+	cli := kl.dockerClient
+	ctx := context.Background()
+
+	// Pull image
+	out, err := cli.ImagePull(ctx, cadvisorImage, dockertypes.ImagePullOptions{})
+	if err != nil {
+		glog.Errorf("fail to create cadvisor container: %v", err)
+		return err
+	}
+	_, err = io.ReadAll(out)
+	if err != nil {
+		glog.Errorf("fail to create cadvisor container: %v", err)
+		return nil
+	}
+	defer func(out io.ReadCloser) {
+		err := out.Close()
+		if err != nil {
+			glog.Error(err)
+		}
+	}(out)
+
+	// Create cadvisor container
+	vBinds := []string{
+		"/:/rootfs:ro",
+		"/var/run:/var/run:ro",
+		"/sys:/sys:ro",
+		"/var/lib/docker/:/var/lib/docker:ro",
+		"/dev/disk/:/dev/disk:ro",
+	}
+	exposedPort := dockernat.Port(fmt.Sprintf("%d/tcp", cadvisorPort))
+	resp, err := cli.ContainerCreate(ctx, &dockercontainer.Config{
+		Image: cadvisorImage,
+		ExposedPorts: dockernat.PortSet{
+			exposedPort: struct{}{},
+		},
+	}, &dockercontainer.HostConfig{
+		Binds:      vBinds,
+		Privileged: true,
+		PortBindings: dockernat.PortMap{
+			exposedPort: []dockernat.PortBinding{
+				{
+					HostIP:   "0.0.0.0",
+					HostPort: fmt.Sprint(cadvisorPort),
+				},
+			},
+		},
+	}, nil, nil, cadvisorName)
+	if err != nil {
+		return err
+	}
+
+	// Start cadvisor container
+	err = cli.ContainerStart(ctx, resp.ID, dockertypes.ContainerStartOptions{})
+	if err != nil {
+		glog.Errorf("fail to start cadvisor container: %v", err)
+		return err
+	}
+
+	glog.Infoln("successfully starts cadvisor container")
 	return nil
 }

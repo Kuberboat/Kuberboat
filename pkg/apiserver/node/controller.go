@@ -13,6 +13,7 @@ import (
 	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
+	"p9t.io/kuberboat/pkg/apiserver/metrics"
 	"p9t.io/kuberboat/pkg/kubelet"
 )
 
@@ -71,6 +72,18 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 
 	node.Status.Phase = core.NodeRunning
 	node.Status.Condition = core.NodeReady
+
+	err = metrics.GeneratePrometheusTargets(bc.nodeManager.RegisteredNodes())
+	if err != nil {
+		bc.nodeManager.UnregisterNode(node.Name)
+		return err
+	}
+
 	err = etcd.Put(fmt.Sprintf("/Nodes/%s", node.Name), node)
-	return err
+	if err != nil {
+		bc.nodeManager.UnregisterNode(node.Name)
+		return err
+	}
+
+	return nil
 }

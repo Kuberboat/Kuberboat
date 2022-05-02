@@ -27,6 +27,7 @@ func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredR
 	if err := kubelet.KubeletInstance().ConnectToServer(&apiserver); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
+	go kubelet.KubeletInstance().StartCAdvisor()
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 

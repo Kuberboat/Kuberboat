@@ -23,6 +23,10 @@ type ComponentManager interface {
 	PodExistsByName(name string) bool
 	// ListPods lists all the pods present.
 	ListPods() []*core.Pod
+	// ListPodsByPhase lists all pods whose phases match exactly with the given phase.
+	ListPodsByPhase(phase core.PodPhase) []*core.Pod
+	// ListPodsByLabels lists all pods whose labels and phases match exactly with the given ones.
+	ListPodsByLabelsAndPhase(labels *map[string]string, phase core.PodPhase) *list.List
 
 	// SetDeployment sets a deployment and the pods it creates into ComponentManager. This
 	// function will not check the existence of the deployment.
@@ -45,8 +49,6 @@ type ComponentManager interface {
 	// check the existence of the pod. If the pod does not belong to any deployment, the function will return
 	// nil.
 	GetDeploymentByPodName(podName string) *core.Deployment
-	// ListPodsByLabels lists all the pods whose labels match exactly with the given labels.
-	ListPodsByLabelsAndPhase(labels *map[string]string, phase core.PodPhase) *list.List
 
 	// SetService sets a pod into ComponentManager. This function will not check the existence of the
 	// service. To check for existence, you should call `ServiceExistsByName`.
@@ -130,6 +132,33 @@ func (cm *componentManagerInner) ListPods() []*core.Pod {
 	return pods
 }
 
+func (cm *componentManagerInner) ListPodsByPhase(phase core.PodPhase) []*core.Pod {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	pods := make([]*core.Pod, 0)
+	for _, pod := range cm.pods {
+		if pod.Status.Phase == phase {
+			pods = append(pods, pod)
+		}
+	}
+	return pods
+}
+
+func (cm *componentManagerInner) ListPodsByLabelsAndPhase(
+	labels *map[string]string,
+	phase core.PodPhase,
+) *list.List {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	pods := list.New()
+	for _, pod := range cm.pods {
+		if pod.Status.Phase == phase && reflect.DeepEqual(*labels, pod.Labels) {
+			pods.PushBack(pod)
+		}
+	}
+	return pods
+}
+
 func (cm *componentManagerInner) SetDeployment(deployment *core.Deployment, pods *list.List) {
 	cm.mtx.Lock()
 	defer cm.mtx.Unlock()
@@ -194,21 +223,6 @@ func (cm *componentManagerInner) GetDeploymentByPodName(podName string) *core.De
 		}
 	}
 	return nil
-}
-
-func (cm *componentManagerInner) ListPodsByLabelsAndPhase(
-	labels *map[string]string,
-	phase core.PodPhase,
-) *list.List {
-	cm.mtx.RLock()
-	defer cm.mtx.RUnlock()
-	pods := list.New()
-	for _, pod := range cm.pods {
-		if pod.Status.Phase == phase && reflect.DeepEqual(*labels, pod.Labels) {
-			pods.PushBack(pod)
-		}
-	}
-	return pods
 }
 
 func (cm *componentManagerInner) SetService(service *core.Service, pods *list.List) {

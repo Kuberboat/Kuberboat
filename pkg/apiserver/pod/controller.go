@@ -11,6 +11,7 @@ import (
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
 	"p9t.io/kuberboat/pkg/apiserver/node"
+	"p9t.io/kuberboat/pkg/apiserver/schedule"
 )
 
 type Controller interface {
@@ -39,7 +40,7 @@ type basicController struct {
 	// componentManager stores the components and the dependencies between them.
 	componentManager apiserver.ComponentManager
 	// podScheduler tells which node to schedule a pod on.
-	podScheduler apiserver.PodScheduler
+	podScheduler schedule.PodScheduler
 	// nodeManager provides grpc client to pod controller.
 	nodeManager node.NodeManager
 	// legacyManager provides a means to retain pod-related information after a pod is deleted.
@@ -48,7 +49,7 @@ type basicController struct {
 
 func NewPodController(
 	componentManager apiserver.ComponentManager,
-	podScheduler apiserver.PodScheduler,
+	podScheduler schedule.PodScheduler,
 	nodeManager node.NodeManager,
 	legacyManager apiserver.LegacyManager,
 ) Controller {

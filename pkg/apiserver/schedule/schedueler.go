@@ -1,4 +1,4 @@
-package apiserver
+package schedule
 
 import (
 	"p9t.io/kuberboat/pkg/api/core"

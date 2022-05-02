@@ -12,8 +12,10 @@ import (
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/deployment"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
+	"p9t.io/kuberboat/pkg/apiserver/metrics"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 	"p9t.io/kuberboat/pkg/apiserver/pod"
+	"p9t.io/kuberboat/pkg/apiserver/schedule"
 	"p9t.io/kuberboat/pkg/apiserver/service"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
@@ -22,11 +24,12 @@ import (
 var nodeManager = node.NewNodeManager()
 var componentManager = apiserver.NewComponentManager()
 var legacyManager = apiserver.NewLegacyManager(componentManager)
-var podScheduler = apiserver.NewPodScheduler(nodeManager)
+var podScheduler = schedule.NewPodScheduler(nodeManager)
 var podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
-var serviceController, err = service.NewServiceController(componentManager, nodeManager)
+var serviceController, _ = service.NewServiceController(componentManager, nodeManager)
 var deploymentController = deployment.NewDeploymentController(componentManager, podController)
 var nodeController = node.NewNodeController(nodeManager)
+var metricsManager, _ = metrics.NewMetricsManager(componentManager)
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -125,12 +128,11 @@ func (s *server) DeleteDeployment(ctx context.Context, req *pb.DeleteDeploymentR
 
 func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusRequest) (*pb.DefaultResponse, error) {
 	var status core.PodStatus
-	var prevStatus *core.PodStatus
-	var err error
-	if err = json.Unmarshal(req.PodStatus, &status); err != nil {
+	if err := json.Unmarshal(req.PodStatus, &status); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
-	if prevStatus, err = podController.UpdatePodStatus(req.PodName, &status); err != nil {
+	prevStatus, err := podController.UpdatePodStatus(req.PodName, &status)
+	if err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
 
@@ -234,6 +236,11 @@ func StartServer(etcdServers string) {
 	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})
 
 	glog.Infof("Api server listening at %v", lis.Addr())
+
+	// Empty prometheus target file
+	metrics.GeneratePrometheusTargets([]*core.Node{})
+
+	go metricsManager.StartMonitor()
 
 	if err := apiServer.Serve(lis); err != nil {
 		glog.Fatal(err)
