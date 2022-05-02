@@ -1,12 +1,14 @@
 package app
 
 import (
+	"container/list"
 	"context"
 	"encoding/json"
 	"fmt"
 	"net"
 
 	"github.com/golang/glog"
+	clientv3 "go.etcd.io/etcd/client/v3"
 	"google.golang.org/grpc"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
@@ -222,12 +224,100 @@ func (*server) DescribeDeployments(ctx context.Context, req *pb.DescribeDeployme
 	}, nil
 }
 
+func recover() error {
+	// recover all the pods
+	var podType core.Pod
+	pods, err := etcd.Get("/Pods", podType, clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	if len(pods) == 0 {
+		return nil
+	}
+	nameToPods := make(map[string]*core.Pod)
+	for _, rawPod := range pods {
+		pod := rawPod.(core.Pod)
+		nameToPods[pod.Name] = &pod
+		componentManager.SetPod(&pod)
+	}
+	// recover all the services
+	var serviceType core.Service
+	rawServices, err := etcd.Get("/Services/Meta", serviceType, clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	for _, rawService := range rawServices {
+		service := rawService.(core.Service)
+		var podNames []string
+		rawPodNames, err := etcd.Get(fmt.Sprintf("/Services/Pods/%s", service.Name), podNames)
+		if err != nil {
+			return err
+		}
+		if len(rawPodNames) != 1 {
+			glog.Fatal("service should have only one pod array")
+		}
+		podNames = rawPodNames[0].([]string)
+		servicePods := list.New()
+		for _, podName := range podNames {
+			pod, ok := nameToPods[podName]
+			if !ok {
+				glog.Fatal("service has an unknown pod")
+			}
+			servicePods.PushBack(pod)
+		}
+		componentManager.SetService(&service, servicePods)
+	}
+	// recover all the deployments
+	var deploymentType core.Deployment
+	rawDeployments, err := etcd.Get("/Services/Meta", deploymentType, clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	for _, rawDeployment := range rawDeployments {
+		deployment := rawDeployment.(core.Deployment)
+		var podNames []string
+		rawPodNames, err := etcd.Get(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), podNames)
+		if err != nil {
+			return err
+		}
+		if len(rawPodNames) > 1 {
+			glog.Fatal("service should have only one pod array")
+		}
+		podNames = rawPodNames[0].([]string)
+		deploymentPods := list.New()
+		for _, podName := range podNames {
+			pod, ok := nameToPods[podName]
+			if !ok {
+				glog.Fatal("deployment has an unknown pod")
+			}
+			deploymentPods.PushBack(pod)
+		}
+		componentManager.SetDeployment(&deployment, deploymentPods)
+	}
+	// recover all the nodes
+	var nodeType core.Node
+	rawNodes, err := etcd.Get("/Nodes", nodeType, clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	for _, rawNode := range rawNodes {
+		node := rawNode.(core.Node)
+		if err := nodeManager.RegisterNode(&node); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func StartServer(etcdServers string) {
+	if err := etcd.InitializeClient(etcdServers); err != nil {
+		glog.Fatal(err)
+	}
+	recover()
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
 	if err != nil {
 		glog.Fatal("Api server failed to connect!")
 	}
-	err = etcd.InitializeClient(etcdServers)
 	if err != nil {
 		glog.Fatal(err)
 	}

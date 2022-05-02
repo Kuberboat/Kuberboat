@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"reflect"
 	"strings"
 	"time"
 
@@ -12,8 +13,10 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 )
 
-const REQUEST_TIMEOUT = 2 * time.Second
-const DIAL_TIMEOUT = 2 * time.Second
+const (
+	REQUEST_TIMEOUT = 2 * time.Second
+	DIAL_TIMEOUT    = 2 * time.Second
+)
 
 var client *clientv3.Client
 
@@ -33,7 +36,7 @@ func InitializeClient(etcdServers string) error {
 
 func GetPodNames(pods *list.List) []string {
 	podNames := make([]string, 0, pods.Len())
-	for e := pods.Front(); e != pods.Back(); e = e.Next() {
+	for e := pods.Front(); e != nil; e = e.Next() {
 		podNames = append(podNames, e.Value.(*core.Pod).Name)
 	}
 	return podNames
@@ -62,14 +65,56 @@ func Get(key string, valueType interface{}, opts ...clientv3.OpOption) ([]interf
 		return nil, err
 	}
 	values := make([]interface{}, 0, resp.Count)
-	for _, kv := range resp.Kvs {
-		buffer := valueType
-		if err = json.Unmarshal(kv.Value, &buffer); err != nil {
+	switch valueType := valueType.(type) {
+	case core.Pod:
+		for _, kv := range resp.Kvs {
+			buffer := valueType
+			if err = json.Unmarshal(kv.Value, &buffer); err != nil {
+				return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
+			}
+			values = append(values, buffer)
+		}
+		return values, nil
+	case core.Service:
+		for _, kv := range resp.Kvs {
+			buffer := valueType
+			if err = json.Unmarshal(kv.Value, &buffer); err != nil {
+				return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
+			}
+			values = append(values, buffer)
+		}
+		return values, nil
+	case core.Deployment:
+		for _, kv := range resp.Kvs {
+			buffer := valueType
+			if err = json.Unmarshal(kv.Value, &buffer); err != nil {
+				return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
+			}
+			values = append(values, buffer)
+		}
+		return values, nil
+	case core.Node:
+		for _, kv := range resp.Kvs {
+			buffer := valueType
+			if err = json.Unmarshal(kv.Value, &buffer); err != nil {
+				return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
+			}
+			values = append(values, buffer)
+		}
+		return values, nil
+	case []string:
+		if len(resp.Kvs) != 1 {
+			return values, fmt.Errorf("one should have only 1 pod array, now it has %v", len(resp.Kvs))
+		}
+		kv := resp.Kvs[0]
+		if err = json.Unmarshal(kv.Value, &valueType); err != nil {
 			return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
 		}
-		values = append(values, buffer)
+		values = append(values, valueType)
+		return values, nil
+	default:
+		return nil, fmt.Errorf("no such type: %s", reflect.TypeOf(valueType).String())
 	}
-	return values, nil
 }
 
 // Delete is a wrapper of clientv3.Delete
