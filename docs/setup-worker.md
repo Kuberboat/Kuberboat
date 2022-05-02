@@ -290,4 +290,4 @@ It could be indicated that in the host of `hostA`:
 
 #### 5. Learn More
 
-[This URL](https://www.devopsschool.com/tutorial/kubernetes/kubernetes-cni-flannel-overlay-networking.html) might provide more information about how flannel works together with docker. If you prefer Chinese, [click here](https://www.zhihu.com/collection/794635077).
+[This URL](https://www.devopsschool.com/tutorial/kubernetes/kubernetes-cni-flannel-overlay-networking.html) might provide more information about how flannel works together with docker. If you prefer Chinese, [click here](https://zhuanlan.zhihu.com/p/140711132).
