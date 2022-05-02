@@ -1,0 +1,9 @@
+kind: DNS
+metadata:
+  name: dns-example
+spec:
+  host: test.com
+  paths:
+  - path: /aaa 
+    service: mypod-replica-1
+    port: 8088

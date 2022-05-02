@@ -64,6 +64,8 @@ const (
 	NodeType = "Node"
 	// ServiceType means the resource is a service
 	ServiceType = "Service"
+	// DnsType means the resource is a dns config.
+	DNSType = "DNS"
 )
 
 // PodPhase is a label for the condition of a pod at the current time.
@@ -306,4 +308,41 @@ type Config struct {
 	Contexts []ContextWithName
 	// current context
 	CurrentContext ContextWithName `yaml:"currentContext"`
+}
+
+// PathMapping maps a path in the URL to one port of one service.
+type PathMapping struct {
+	// Path is the readable path in URL.
+	Path string
+	// ServiceName is the name of the service the
+	ServiceName string `yaml:"service"`
+	// ServicePort is the port the service is exposing.
+	ServicePort uint16 `yaml:"port"`
+}
+
+// DNSSpec describes the attributes of a DNS configuration.
+type DNSSpec struct {
+	// Host is the domain name.
+	Host string
+	// Paths maps paths of the domain name specified by Host to service ports.
+	Paths []PathMapping
+}
+
+// DNSStatus holds information about the observed status of a DNS configuration.
+type DNSStatus struct {
+	// Applied indicates if the DNS configuration has been successfully applied.
+	Applied bool
+}
+
+// DNS is a set of mapping from URLs to service ports. Each DNS configuration can have just
+// one domain name (Host), but can have multiple paths. Paths must have unique prefixes.
+type DNS struct {
+	// The type of a DNS is DNS.
+	Kind
+	// Standard object's meta. Only name is used.
+	ObjectMeta `yaml:"metadata"`
+	// DNSSpec is the desired DNS configuration.
+	Spec DNSSpec
+	// Most recent observed state of a DNS configuration.
+	Status DNSStatus
 }
