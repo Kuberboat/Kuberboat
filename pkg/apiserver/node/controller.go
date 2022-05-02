@@ -74,9 +74,15 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 
 	err = metrics.GeneratePrometheusTargets(bc.nodeManager.RegisteredNodes())
 	if err != nil {
+		bc.nodeManager.UnregisterNode(node.Name)
 		return err
 	}
 
 	err = etcd.Put(node.Name, node)
-	return err
+	if err != nil {
+		bc.nodeManager.UnregisterNode(node.Name)
+		return err
+	}
+
+	return nil
 }
