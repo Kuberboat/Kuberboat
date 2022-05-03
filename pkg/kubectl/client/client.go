@@ -132,3 +132,12 @@ func (c *ctlClient) DescribeDeployments(all bool, names []string) (*pb.DescribeD
 		DeploymentNames: names,
 	})
 }
+
+func (c *ctlClient) DescribeServices(all bool, names []string) (*pb.DescribeServicesResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	return c.client.DescribeServices(ctx, &pb.DescribeServicesRequest{
+		All:          all,
+		ServiceNames: names,
+	})
+}

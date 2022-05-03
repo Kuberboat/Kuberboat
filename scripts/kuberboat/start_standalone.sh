@@ -25,7 +25,7 @@ then
     chmod +x $prometheus_dir/start_prom.sh
     $prometheus_dir/start_prom.sh
 else
-    echo "Prometheus alreay started"
+    echo "Prometheus already started"
 fi
 
 # Start ETCD
@@ -55,6 +55,7 @@ then
         echo "ETCD successfully started"
     else
         echo "Fail to start ETCD"
+        exit -1
     fi
 else
     echo "ETCD already started"

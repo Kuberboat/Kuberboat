@@ -94,7 +94,7 @@ func (mm *metricsManagerInner) podCPUUsage(pod *core.Pod) (float64, error) {
 		return 0.0, returnErr
 	}
 
-	glog.Infof("pod %s cpu usage: %f\n", pod.Name, float64(result.(model.Vector)[0].Value))
+	// glog.Infof("pod %s cpu usage: %f\n", pod.Name, float64(result.(model.Vector)[0].Value))
 	return float64(result.(model.Vector)[0].Value), nil
 }
 
@@ -135,7 +135,7 @@ func (mm *metricsManagerInner) podMemoryUsage(pod *core.Pod) (uint64, error) {
 		return 0, returnErr
 	}
 
-	glog.Infof("pod %s memory usage: %d bytes\n", pod.Name, uint64(result.(model.Vector)[0].Value))
+	// glog.Infof("pod %s memory usage: %d bytes\n", pod.Name, uint64(result.(model.Vector)[0].Value))
 	return uint64(result.(model.Vector)[0].Value), nil
 }
 

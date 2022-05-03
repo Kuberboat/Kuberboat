@@ -138,9 +138,6 @@ func (c *basicController) DeletePodByName(name string) error {
 
 func (c *basicController) DeleteAllPods() error {
 	for _, pod := range c.componentManager.ListPods() {
-		if err := etcd.Delete(pod.Name); err != nil {
-			return err
-		}
 		if err := c.DeletePodByName(pod.Name); err != nil {
 			return err
 		}

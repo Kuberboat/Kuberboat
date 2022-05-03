@@ -5,6 +5,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/golang/glog"
 	"github.com/google/uuid"
 	clientv3 "go.etcd.io/etcd/client/v3"
 
@@ -28,6 +29,8 @@ type Controller interface {
 	DeleteServiceByName(name string) error
 	// DeleteAllServices deletes all the services by calling DeleteServiceByName.
 	DeleteAllServices() error
+	// DescribeServices return all the services and their respective pods.
+	DescribeServices(all bool, names []string) ([]*core.Service, [][]string, []string)
 }
 
 type basicController struct {
@@ -149,12 +152,45 @@ func (c *basicController) DeleteServiceByName(name string) error {
 func (c *basicController) DeleteAllServices() error {
 	services := c.componentManager.ListServices()
 	for _, service := range services {
-		if err := etcd.Delete(fmt.Sprintf("/Services/%s", service.Name), clientv3.WithPrefix()); err != nil {
-			return err
-		}
 		if err := c.DeleteServiceByName(service.Name); err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func (c *basicController) DescribeServices(all bool, names []string) ([]*core.Service, [][]string, []string) {
+	getServicePodNames := func(service *core.Service) []string {
+		ret := make([]string, 0)
+		pods := c.componentManager.ListPodsByServiceName(service.Name)
+		for i := pods.Front(); i != nil; i = i.Next() {
+			ret = append(ret, i.Value.(*core.Pod).Name)
+		}
+		return ret
+	}
+	servicePods := make([][]string, 0)
+	if all {
+		services := c.componentManager.ListServices()
+		for _, service := range services {
+			servicePods = append(servicePods, getServicePodNames(service))
+		}
+		return services, servicePods, make([]string, 0)
+	} else {
+		foundServices := make([]*core.Service, 0)
+		notFoundServices := make([]string, 0)
+		for _, name := range names {
+			if !c.componentManager.ServiceExistsByName(name) {
+				notFoundServices = append(notFoundServices, name)
+			} else {
+				service := c.componentManager.GetServiceByName(name)
+				if service == nil {
+					glog.Errorf("service missing even if cm claims otherwise")
+					continue
+				}
+				foundServices = append(foundServices, service)
+				servicePods = append(servicePods, getServicePodNames(service))
+			}
+		}
+		return foundServices, servicePods, notFoundServices
+	}
 }

@@ -50,6 +50,19 @@ message GetPodsResponse {
   bytes not_found_pods = 3;
 }
 
+message DescribeServicesRequest {
+  bool all = 1;
+  repeated string service_names = 2;
+}
+
+message DescribeServicesResponse {
+  // -2 status means some pods are not found.
+  int32 status = 1;
+  bytes services = 2;
+  bytes service_pod_names = 3;
+  bytes not_found_services = 4;
+}
+
 message DescribeDeploymentsRequest {
   bool all = 1;
   repeated string deployment_names = 2;
@@ -69,9 +82,10 @@ service ApiServerCtlService {
   rpc DeletePod(DeletePodRequest) returns(default.DefaultResponse);
   rpc RegisterNode(RegisterNodeRequest) returns(default.DefaultResponse);
   rpc UnregisterNode(UnregisterNodeRequest) returns(default.DefaultResponse);
-  rpc CreateDeployment(CreateDeploymentRequest) returns(default.DefaultResponse);
-  rpc DeleteDeployment(DeleteDeploymentRequest) returns(default.DefaultResponse);
   rpc CreateService(CreateServiceRequest) returns(default.DefaultResponse);
   rpc DeleteService(DeleteServiceRequest) returns(default.DefaultResponse);
+  rpc DescribeServices(DescribeServicesRequest) returns(DescribeServicesResponse);
+  rpc CreateDeployment(CreateDeploymentRequest) returns(default.DefaultResponse);
+  rpc DeleteDeployment(DeleteDeploymentRequest) returns(default.DefaultResponse);
   rpc DescribeDeployments(DescribeDeploymentsRequest) returns (DescribeDeploymentsResponse);
 }
