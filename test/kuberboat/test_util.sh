@@ -34,3 +34,9 @@ json_digit_value() {
     [[ $1 =~ $regex ]]
     echo ${BASH_REMATCH[1]}
 }
+
+json_array_value() {
+    regex=".*\"$2\": \[([^\[]*)\]"
+    [[ $1 =~ $regex ]]
+    echo ${BASH_REMATCH[1]}
+}

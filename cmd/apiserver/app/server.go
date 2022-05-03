@@ -230,6 +230,72 @@ func (*server) DescribeDeployments(ctx context.Context, req *pb.DescribeDeployme
 	}, nil
 }
 
+func (*server) DescribeServices(ctx context.Context, req *pb.DescribeServicesRequest) (*pb.DescribeServicesResponse, error) {
+	foundServices, servicePods, notFoundServices := serviceController.DescribeServices(req.All, req.ServiceNames)
+	serializeErrResponse := &pb.DescribeServicesResponse{
+		Status:          -1,
+		Services:        nil,
+		ServicePodNames: nil,
+	}
+
+	foundServicesData, err := json.Marshal(foundServices)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	servicePodsData, err := json.Marshal(servicePods)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	notFoundServicesData, err := json.Marshal(notFoundServices)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	var status int32
+	if len(notFoundServices) > 0 {
+		status = -2
+	} else {
+		status = 0
+	}
+
+	return &pb.DescribeServicesResponse{
+		Status:           status,
+		Services:         foundServicesData,
+		ServicePodNames:  servicePodsData,
+		NotFoundServices: notFoundServicesData,
+	}, nil
+}
+
+func StartServer(etcdServers string) {
+	if err := etcd.InitializeClient(etcdServers); err != nil {
+		glog.Fatal(err)
+	}
+	recover()
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
+	if err != nil {
+		glog.Fatal("Api server failed to connect!")
+	}
+	if err != nil {
+		glog.Fatal(err)
+	}
+	apiServer := grpc.NewServer()
+	pb.RegisterApiServerCtlServiceServer(apiServer, &server{})
+	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})
+
+	glog.Infof("Api server listening at %v", lis.Addr())
+
+	// Empty prometheus target file
+	metrics.GeneratePrometheusTargets([]*core.Node{})
+
+	go metricsManager.StartMonitor()
+
+	if err := apiServer.Serve(lis); err != nil {
+		glog.Fatal(err)
+	}
+}
+
 func recover() error {
 	// recover all the pods
 	var podType core.Pod
@@ -313,68 +379,4 @@ func recover() error {
 		}
 	}
 	return nil
-func (*server) DescribeServices(ctx context.Context, req *pb.DescribeServicesRequest) (*pb.DescribeServicesResponse, error) {
-	foundServices, servicePods, notFoundServices := serviceController.DescribeServices(req.All, req.ServiceNames)
-	serializeErrResponse := &pb.DescribeServicesResponse{
-		Status:          -1,
-		Services:        nil,
-		ServicePodNames: nil,
-	}
-
-	foundServicesData, err := json.Marshal(foundServices)
-	if err != nil {
-		return serializeErrResponse, err
-	}
-
-	servicePodsData, err := json.Marshal(servicePods)
-	if err != nil {
-		return serializeErrResponse, err
-	}
-
-	notFoundServicesData, err := json.Marshal(notFoundServices)
-	if err != nil {
-		return serializeErrResponse, err
-	}
-
-	var status int32
-	if len(notFoundServices) > 0 {
-		status = -2
-	} else {
-		status = 0
-	}
-
-	return &pb.DescribeServicesResponse{
-		Status:           status,
-		Services:         foundServicesData,
-		ServicePodNames:  servicePodsData,
-		NotFoundServices: notFoundServicesData,
-	}, nil
-}
-
-func StartServer(etcdServers string) {
-	if err := etcd.InitializeClient(etcdServers); err != nil {
-		glog.Fatal(err)
-	}
-	recover()
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
-	if err != nil {
-		glog.Fatal("Api server failed to connect!")
-	}
-	if err != nil {
-		glog.Fatal(err)
-	}
-	apiServer := grpc.NewServer()
-	pb.RegisterApiServerCtlServiceServer(apiServer, &server{})
-	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})
-
-	glog.Infof("Api server listening at %v", lis.Addr())
-
-	// Empty prometheus target file
-	metrics.GeneratePrometheusTargets([]*core.Node{})
-
-	go metricsManager.StartMonitor()
-
-	if err := apiServer.Serve(lis); err != nil {
-		glog.Fatal(err)
-	}
 }

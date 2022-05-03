@@ -10,6 +10,7 @@ KUBELET_SRC = ./cmd/kubelet/kubelet.go
 KUBELET_OBJ = kubelet
 KUBECTL_SRC = ./cmd/kubectl/kubectl.go
 KUBECTL_OBJ = kubectl
+SCRIPTS_DIR = ./scripts/kuberboat
 
 $(shell mkdir -p $(BUILD_DIR))
 
@@ -48,3 +49,12 @@ vet:
 clean:
 	rm -rf $(PROTO_GEN_DIR)
 	rm -rf $(BUILD_DIR)
+.PHONY: start
+start:
+	$(SCRIPTS_DIR)/kuberboat-dev.sh start
+.PHONY: stop
+stop:
+	$(SCRIPTS_DIR)/kuberboat-dev.sh stop
+.PHONY: restart
+restart:
+	$(SCRIPTS_DIR)/kuberboat-dev.sh restart
