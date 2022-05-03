@@ -40,7 +40,6 @@ type ComponentManager interface {
 	DeploymentExistsByName(name string) bool
 	// ListDeployments lists all the deployments present.
 	ListDeployments() []*core.Deployment
-
 	// ListPodsByDeployment lists all the pods given the name of a deployment. This function will not
 	// check the existence of the deployment. If the deployment does not exist, an empty array will be
 	// returned.
@@ -62,6 +61,10 @@ type ComponentManager interface {
 	ServiceExistsByName(name string) bool
 	// ListServices lists all the services present.
 	ListServices() []*core.Service
+	// ListPodsByServiceName lists all the pods given the name of a service. This function will not
+	// check the existence of the service. If the service does not exist, an empty array will be
+	// returned.
+	ListPodsByServiceName(serviceName string) *list.List
 }
 
 type componentManagerInner struct {
@@ -260,4 +263,10 @@ func (cm *componentManagerInner) ListServices() []*core.Service {
 		services = append(services, service)
 	}
 	return services
+}
+
+func (cm *componentManagerInner) ListPodsByServiceName(serviceName string) *list.List {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	return cm.servicesToPods[serviceName]
 }

@@ -5,4 +5,4 @@ pkg/proto
 
 /.vscode
 # etcd
-/default.etcd
+/*.etcd

@@ -113,7 +113,6 @@ func applyService(data []byte) {
 			service.Spec.Ports[i].TargetPort = service.Spec.Ports[i].Port
 		}
 	}
-	fmt.Println(service)
 	client := client.NewCtlClient()
 	response, err := client.CreateService(&service)
 	if err != nil {

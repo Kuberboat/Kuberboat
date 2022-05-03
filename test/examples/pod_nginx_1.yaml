@@ -1,0 +1,15 @@
+kind: Pod
+metadata:
+  name: test-pod-1
+  labels:
+    app: my-nginx
+    env: dev
+spec:
+  containers:
+    - name: nginx
+      image: nginx:latest
+      ports: 
+        - 80
+      resources:
+        cpu: 1
+        memory: 102400000

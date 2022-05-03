@@ -1,11 +1,10 @@
 kind: Service
 metadata:
-  name: mypod-replica-1
+  name: nginx-service
 spec:
   ports:
     - port: 8088
       targetPort: 80
-    - port: 6379 # targetPort defaults to 6379
   selector:
-      app: mypod
-      env: dev
+    app: my-nginx
+    env: dev

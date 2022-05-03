@@ -27,6 +27,12 @@ Examples:
 
   # Describe all pods
   kubectl describe pods
+
+  # Describe a service
+  kubectl describe service serviceName1 serviceName2
+  
+  # Describe all services
+  kubectl describe services
   
   # Describe a deployment
   kubectl describe deployment deploymentName1 deploymentName2
@@ -41,6 +47,10 @@ Examples:
 			describePods(args[1:])
 		case "pods":
 			describePods(nil)
+		case "service":
+			describeServices(args[1:])
+		case "services":
+			describeServices(nil)
 		case "deployment":
 			describeDeployments(args[1:])
 		case "deployments":
@@ -66,11 +76,89 @@ func init() {
 }
 
 func describePods(podNames []string) {
-	// client := client.NewCtlClient()
+	client := client.NewCtlClient()
+	var resp *pb.GetPodsResponse
+	var err error
 	if podNames == nil {
-		// TODO: describe all the resources
+		resp, err = client.GetPods(true, nil)
 	} else {
-		// TODO: describe specified resources
+		resp, err = client.GetPods(false, podNames)
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var foundPods []*core.Pod
+	var notFoundPods []string
+	err = json.Unmarshal(resp.Pods, &foundPods)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	prettyjson, err := json.MarshalIndent(foundPods, "", "    ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(prettyjson))
+
+	if resp.Status == -2 {
+		err = json.Unmarshal(resp.NotFoundPods, &notFoundPods)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("The following pods are not found: %v\n", notFoundPods)
+	}
+}
+
+func describeServices(serviceNames []string) {
+	type DisplayedServices struct {
+		Service *core.Service
+		Pods    []string
+	}
+	client := client.NewCtlClient()
+	var resp *pb.DescribeServicesResponse
+	var err error
+	if serviceNames == nil {
+		resp, err = client.DescribeServices(true, nil)
+	} else {
+		resp, err = client.DescribeServices(false, serviceNames)
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var foundServices []*core.Service
+	var displayedServices []DisplayedServices
+	var servicePods [][]string
+	var notFoundServices []string
+	err = json.Unmarshal(resp.Services, &foundServices)
+	if err != nil {
+		log.Fatal(err)
+	}
+	err = json.Unmarshal(resp.ServicePodNames, &servicePods)
+	if err != nil {
+		log.Fatal(err)
+	}
+	for index, service := range foundServices {
+		displayedServices = append(displayedServices, DisplayedServices{
+			Service: service,
+			Pods:    servicePods[index],
+		})
+	}
+	prettyjson, err := json.MarshalIndent(displayedServices, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(prettyjson))
+
+	if resp.Status == -2 {
+		err = json.Unmarshal(resp.NotFoundServices, &notFoundServices)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("The following services are not found: %v\n", notFoundServices)
 	}
 }
 

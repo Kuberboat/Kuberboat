@@ -1,7 +1,6 @@
 package node
 
 import (
-	"errors"
 	"fmt"
 
 	"p9t.io/kuberboat/pkg/api/core"
@@ -42,7 +41,7 @@ func NewNodeManager() NodeManager {
 
 func (nm *nodeManagerInner) RegisterNode(node *core.Node) error {
 	if nm.nodes[node.Name] != nil {
-		return errors.New("duplicate node name")
+		return fmt.Errorf("duplicate node name %s", node.Name)
 	}
 	client, err := client.NewCtlClient(node.Status.Address, node.Status.Port)
 	if err != nil {

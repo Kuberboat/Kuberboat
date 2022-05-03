@@ -34,6 +34,8 @@ type Contoller interface {
 	// DeleteDeploymentByName deletes the deployment and its pods.
 	// IMPORTANT: Must be called BEFORE metadata is modified, so the deployment can know what pods to delete.
 	DeleteDeploymentByName(name string) error
+	// DeleteAllDeployments deletes all deployments by calling DeleteDeploymentByName.
+	DeleteAllDeployments() error
 	// monitorDeployment checks if the status of deployments matches their specs.
 	// If not, make adjustments.
 	monitorDeployment()
@@ -233,6 +235,16 @@ func (m *basicController) DeleteDeploymentByName(name string) error {
 		return fmt.Errorf("no such deployment: %v", name)
 	}
 
+	return nil
+}
+
+func (m *basicController) DeleteAllDeployments() error {
+	deployments := m.componentManager.ListDeployments()
+	for _, deployment := range deployments {
+		if err := m.DeleteDeploymentByName(deployment.Name); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

@@ -35,7 +35,16 @@ var (
   kubectl delete services <serviceName1> <serviceName2> ...
   
   # Delete all services
-  kubectl delete services --all`,
+  kubectl delete services --all
+  
+  # Delete a deployment using the name
+  kubectl delete deployment <deploymentName>
+
+  # Delete specified deployments
+  kubectl delete deployments <deploymentName1> <deploymentName2> ...
+  
+  # Delete all deployments
+  kubectl delete deployments --all`,
 		Args: cobra.MinimumNArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
 			resourceType := args[0]
@@ -58,6 +67,12 @@ var (
 				}
 			case "deployment":
 				deleteDeployments([]string{args[1]})
+			case "deployments":
+				if all {
+					deleteDeployments(nil)
+				} else {
+					deleteDeployments(args[1:])
+				}
 			default:
 				log.Fatalf("%v is not supported\n", resourceType)
 			}
@@ -123,12 +138,21 @@ func deleteServices(serviceNames []string) {
 
 func deleteDeployments(deploymentNames []string) {
 	client := client.NewCtlClient()
-	for _, name := range deploymentNames {
-		response, err := client.DeleteDeployment(name)
+	if deploymentNames == nil {
+		response, err := client.DeleteDeployment("")
 		if err != nil {
 			log.Print(err)
 		} else {
-			fmt.Printf("Response status: %v ;Deployment %v deleted\n", response.Status, name)
+			fmt.Printf("Reponse status: %v ;Deployments deleted\n", response.Status)
+		}
+	} else {
+		for _, name := range deploymentNames {
+			response, err := client.DeleteDeployment(name)
+			if err != nil {
+				log.Print(err)
+			} else {
+				fmt.Printf("Response status: %v ;Deployment %v deleted\n", response.Status, name)
+			}
 		}
 	}
 }

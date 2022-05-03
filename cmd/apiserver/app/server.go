@@ -122,8 +122,14 @@ func (s *server) CreateDeployment(ctx context.Context, req *pb.CreateDeploymentR
 }
 
 func (s *server) DeleteDeployment(ctx context.Context, req *pb.DeleteDeploymentRequest) (*pb.DefaultResponse, error) {
-	if err := deploymentController.DeleteDeploymentByName(req.DeploymentName); err != nil {
-		return &pb.DefaultResponse{Status: -1}, err
+	if req.DeploymentName == "" {
+		if err := deploymentController.DeleteAllDeployments(); err != nil {
+			return &pb.DefaultResponse{Status: -1}, err
+		}
+	} else {
+		if err := deploymentController.DeleteDeploymentByName(req.DeploymentName); err != nil {
+			return &pb.DefaultResponse{Status: -1}, err
+		}
 	}
 	return &pb.DefaultResponse{Status: 0}, nil
 }
@@ -307,6 +313,42 @@ func recover() error {
 		}
 	}
 	return nil
+func (*server) DescribeServices(ctx context.Context, req *pb.DescribeServicesRequest) (*pb.DescribeServicesResponse, error) {
+	foundServices, servicePods, notFoundServices := serviceController.DescribeServices(req.All, req.ServiceNames)
+	serializeErrResponse := &pb.DescribeServicesResponse{
+		Status:          -1,
+		Services:        nil,
+		ServicePodNames: nil,
+	}
+
+	foundServicesData, err := json.Marshal(foundServices)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	servicePodsData, err := json.Marshal(servicePods)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	notFoundServicesData, err := json.Marshal(notFoundServices)
+	if err != nil {
+		return serializeErrResponse, err
+	}
+
+	var status int32
+	if len(notFoundServices) > 0 {
+		status = -2
+	} else {
+		status = 0
+	}
+
+	return &pb.DescribeServicesResponse{
+		Status:           status,
+		Services:         foundServicesData,
+		ServicePodNames:  servicePodsData,
+		NotFoundServices: notFoundServicesData,
+	}, nil
 }
 
 func StartServer(etcdServers string) {
