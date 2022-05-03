@@ -1,0 +1,19 @@
+kind: Deployment
+metadata:
+  name: deployment-nginx
+spec:
+  replicas: 2
+  template:
+    metadata:
+      labels:
+        app: my-nginx
+        env: dev
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.21.6
+        ports: 
+          - 80
+        resources:
+          cpu: 1
+          memory: 128000000

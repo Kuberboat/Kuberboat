@@ -141,3 +141,15 @@ func (c *ctlClient) DescribeServices(all bool, names []string) (*pb.DescribeServ
 		ServiceNames: names,
 	})
 }
+
+func (c *ctlClient) CreateDNS(dns *core.DNS) (*pb.DefaultResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	data, err := json.Marshal(dns)
+	if err != nil {
+		return &pb.DefaultResponse{Status: 1}, err
+	}
+	return c.client.CreateDNS(ctx, &pb.CreateDNSRequest{
+		Dns: data,
+	})
+}

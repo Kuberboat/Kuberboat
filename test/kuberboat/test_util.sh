@@ -3,6 +3,7 @@
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 proj_root_path=$parent_path/../..
 kubectl=$proj_root_path/out/bin/kubectl
+nginx_welcome="Welcome to nginx!"
 
 check_test() {
     if [ $1 -eq 0 ]

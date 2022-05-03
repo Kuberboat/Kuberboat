@@ -15,17 +15,21 @@ import (
 	dockercontainer "github.com/docker/docker/api/types/container"
 	dockerclient "github.com/docker/docker/client"
 	dockernat "github.com/docker/go-connections/nat"
+	etcd "go.etcd.io/etcd/client/v3"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/kubelet/client"
 	kubeletpod "p9t.io/kuberboat/pkg/kubelet/pod"
 )
 
 const (
-	pauseImage    string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
-	cadvisorImage string = "google/cadvisor:v0.33.0"
-	cadvisorPort  uint16 = 8080
-	cadvisorName  string = "kuberboat-cadvisor"
-	Port                 = 4000
+	pauseImage      string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
+	cadvisorImage   string = "google/cadvisor:v0.33.0"
+	cadvisorPort    uint16 = 8080
+	cadvisorName    string = "kuberboat-cadvisor"
+	Port                   = 4000
+	dnsIPKey               = "/ip/coredns"
+	etcdPort               = 2379
+	etcdDialTimeout        = 2000000000
 )
 
 // Kubelet defines public methods of a PodManager.
@@ -48,6 +52,8 @@ type Kubelet interface {
 
 // Kubelet is the core data structure of the component. It manages pods, containers, monitors.
 type dockerKubelet struct {
+	// IP address of the DNS name server for all the containers.
+	dnsIP string
 	// Client to communicate with API server.
 	apiClient *client.KubeletClient
 	// Ensure concurrent access to inner data structures are safe.
@@ -60,19 +66,8 @@ type dockerKubelet struct {
 	podRuntimeManager kubeletpod.RuntimeManager
 }
 
-var kubelet Kubelet
-
-// Instance is the access point of the singleton kubelet instance.
-// NOT thread safe.
-func KubeletInstance() Kubelet {
-	if kubelet == nil {
-		kubelet = newKubelet()
-	}
-	return kubelet
-}
-
 // newKubelet creates a new Kubelet object.
-func newKubelet() Kubelet {
+func NewKubelet() Kubelet {
 	// Create docker client.
 	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
 	if err != nil {
@@ -89,12 +84,40 @@ func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) 
 	if kl.apiClient != nil {
 		return errors.New("api server client alreay exists")
 	}
-	cli, err := client.NewKubeletClient(apiserverStatus.IP, apiserverStatus.Port)
+	apiClient, err := client.NewKubeletClient(apiserverStatus.IP, apiserverStatus.Port)
 	if err != nil {
 		return err
 	}
-	kl.apiClient = cli
+	kl.apiClient = apiClient
 	glog.Infof("connected to api server at %v:%v", apiserverStatus.IP, apiserverStatus.Port)
+
+	// Get CoreDNS IP from etcd.
+	var dnsIP string
+	etcdClient, err := etcd.New(etcd.Config{
+		Endpoints:   []string{fmt.Sprintf("%v:%v", apiserverStatus.IP, etcdPort)},
+		DialTimeout: etcdDialTimeout,
+	})
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), etcdDialTimeout)
+	resp, err := etcdClient.Get(ctx, dnsIPKey)
+	cancel()
+	if err != nil {
+		return err
+	}
+	for _, kv := range resp.Kvs {
+		if string(kv.Key) == dnsIPKey {
+			dnsIP = string(kv.Value)
+			if net.ParseIP(dnsIP) == nil {
+				glog.Errorf("got invalid DNS server IP from etcd: %v, DNS might not work", dnsIP)
+			} else {
+				glog.Infof("got DNS server IP: %v", dnsIP)
+			}
+		}
+	}
+	kl.dnsIP = dnsIP
+
 	return nil
 }
 
@@ -130,7 +153,10 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 	// Start user containers. Here we won't care about whether the container has started successfully.
 	// This will be checked by the monitor.
 	for _, c := range pod.Spec.Containers {
-		kl.runPodContainer(ctx, pod, &c)
+		err := kl.runPodContainer(ctx, pod, &c)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Notify API server.
@@ -177,6 +203,7 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 		Image:        pauseImage,
 		ExposedPorts: ports,
 	}, &dockercontainer.HostConfig{
+		DNS:     []string{kl.dnsIP},
 		IpcMode: "shareable",
 	}, nil, nil, pauseName)
 	if err != nil {

@@ -29,16 +29,7 @@ type kubeProxyInner struct {
 	iptablesClient kubeproxy.IPTablesClient
 }
 
-var kubeProxy KubeProxy
-
-func ProxyInstance() KubeProxy {
-	if kubeProxy == nil {
-		kubeProxy = newKubeProxy()
-	}
-	return kubeProxy
-}
-
-func newKubeProxy() KubeProxy {
+func NewKubeProxy() KubeProxy {
 	cli, err := kubeproxy.NewIptablesClient()
 	if err != nil {
 		glog.Fatal(err)

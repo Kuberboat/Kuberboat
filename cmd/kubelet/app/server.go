@@ -11,9 +11,12 @@ import (
 	"google.golang.org/grpc"
 	"p9t.io/kuberboat/pkg/api/core"
 	kubeerror "p9t.io/kuberboat/pkg/api/error"
-	"p9t.io/kuberboat/pkg/kubelet"
+	kl "p9t.io/kuberboat/pkg/kubelet"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
+
+var kubelet kl.Kubelet
+var kubeProxy kl.KubeProxy
 
 type server struct {
 	pb.UnimplementedKubeletApiServerServiceServer
@@ -24,10 +27,10 @@ func (s *server) NotifyRegistered(ctx context.Context, req *pb.NotifyRegisteredR
 	if err := json.Unmarshal(req.Apiserver, &apiserver); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
-	if err := kubelet.KubeletInstance().ConnectToServer(&apiserver); err != nil {
+	if err := kubelet.ConnectToServer(&apiserver); err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
-	go kubelet.KubeletInstance().StartCAdvisor()
+	go kubelet.StartCAdvisor()
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
@@ -37,13 +40,17 @@ func (s *server) CreatePod(ctx context.Context, req *pb.KubeletCreatePodRequest)
 		return &pb.DefaultResponse{Status: -1}, err
 	}
 
-	go kubelet.KubeletInstance().AddPod(context.Background(), &pod)
+	go func() {
+		if err := kubelet.AddPod(context.Background(), &pod); err != nil {
+			glog.Errorf("failed to create pod: %v", err.Error())
+		}
+	}()
 
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
 func (s *server) DeletePod(ctx context.Context, req *pb.KubeletDeletePodRequest) (*pb.DefaultResponse, error) {
-	go kubelet.KubeletInstance().DeletePodByName(context.Background(), req.PodName)
+	go kubelet.DeletePodByName(context.Background(), req.PodName)
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
@@ -63,7 +70,7 @@ func (s *server) CreateService(ctx context.Context, req *pb.KubeletCreateService
 		}
 		servicePorts = append(servicePorts, &port)
 	}
-	err := kubelet.ProxyInstance().CreateService(req.ServiceName, req.ClusterIp, servicePorts, req.PodNames, req.PodIps)
+	err := kubeProxy.CreateService(req.ServiceName, req.ClusterIp, servicePorts, req.PodNames, req.PodIps)
 	if err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
@@ -71,7 +78,7 @@ func (s *server) CreateService(ctx context.Context, req *pb.KubeletCreateService
 }
 
 func (s *server) DeleteService(ctx context.Context, req *pb.KubeletDeleteServiceRequest) (*pb.DefaultResponse, error) {
-	err := kubelet.ProxyInstance().DeleteService(req.ServiceName)
+	err := kubeProxy.DeleteService(req.ServiceName)
 	if err != nil {
 		return &pb.DefaultResponse{Status: -1}, err
 	}
@@ -79,15 +86,18 @@ func (s *server) DeleteService(ctx context.Context, req *pb.KubeletDeleteService
 }
 
 func StartServer() {
+	kubelet = kl.NewKubelet()
+	kubeProxy = kl.NewKubeProxy()
+
 	grpcServer := grpc.NewServer()
 	pb.RegisterKubeletApiServerServiceServer(grpcServer, &server{})
 
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", kubelet.Port))
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%v", kl.Port))
 	if err != nil {
 		glog.Fatal(err)
 	}
 
-	glog.Infof("kubelet server listening at port %v", kubelet.Port)
+	glog.Infof("kubelet server listening at port %v", kl.Port)
 	if err := grpcServer.Serve(lis); err != nil {
 		glog.Fatal(err)
 	}

@@ -3,6 +3,7 @@ module p9t.io/kuberboat
 go 1.17
 
 require (
+	github.com/asaskevich/govalidator v0.0.0-20210307081110-f21760c49a8d
 	github.com/coreos/go-iptables v0.6.0
 	github.com/creasty/defaults v1.6.0
 	github.com/docker/docker v20.10.14+incompatible
