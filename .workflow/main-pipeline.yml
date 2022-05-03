@@ -8,64 +8,51 @@ triggers:
       precise:
         - main
 variables:
-  DOCKER_IMAGE: p9t.io/kuberboat/ci:1.1.4
-  DOCKER_CONTAINER: kuberboat-ci-test
   REPO_NAME: kuberboat
   TEST_FMT_PATH: ./test/test_fmt.sh
+  START_STANDALONE_PATH: ./scripts/kuberboat/start_standalone.sh
+  STOP_STANDALONE_PATH: ./scripts/kuberboat/stop_standalone.sh
+  TEST_ALL_PATH: ./test/kuberboat/test_all.sh
 stages:
-  - name: container
-    displayName: Create Container
+  - name: kuberboat-ci-test
+    displayName: CI Test
     strategy: fast
     trigger: auto
     steps:
       - step: shell@agent
-        name: create-container
-        displayName: create container
+        name: test-fmt
+        displayName: Format Test
         hostGroupID: test
         script: |-
-          docker ps -q --filter "name=${DOCKER_CONTAINER}" | grep -q . && docker stop ${DOCKER_CONTAINER} && docker rm ${DOCKER_CONTAINER}
-          docker run --privileged -d -t --name ${DOCKER_CONTAINER} ${DOCKER_IMAGE}
-  - name: clone
-    displayName: Clone Repo
-    strategy: fast
-    trigger: auto
-    steps:
-      - step: shell@agent
-        name: clone
-        displayName: Clone Repo
-        hostGroupID: test
-        script: |-
-          docker exec ${DOCKER_CONTAINER} bash -c '\
-            git clone git@gitee.com:xx01cyx/kuberboat.git; \
-            cd ${REPO_NAME}'
+          export PATH=$PATH:/usr/local/go/bin
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          git clone git@gitee.com:xx01cyx/kuberboat.git
+          cd ${REPO_NAME}
           if [ $? -ne 0 ]
-          then exit 1
+            then exit 1
           fi
-  - name: test
-    displayName: Test
-    strategy: naturally
-    trigger: auto
-    steps:
+          chmod +x ${TEST_FMT_PATH}
+          ./${TEST_FMT_PATH}
+          cd .. && rm -rf ${REPO_NAME}
       - step: shell@agent
-        name: format
-        displayName: Test Format
+        name: test-function
+        displayName: Functional Test
         hostGroupID: test
         script: |-
-          docker exec ${DOCKER_CONTAINER} bash -c '\
-            cd ${REPO_NAME}; \
-            chmod +x ${TEST_FMT_PATH}; \
-            ./${TEST_FMT_PATH}'
-          exit $?
-      - step: shell@agent
-        name: build
-        displayName: Test Build
-        hostGroupID: test
-        script: |-
-          docker exec ${DOCKER_CONTAINER} bash -c '\
-            source ~/.bashrc; \
-            cd ${REPO_NAME}; \
-            make'
-          exit $?
+          export PATH=$PATH:/usr/local/go/bin
+          export PATH="$PATH:$(go env GOPATH)/bin"
+          git clone git@gitee.com:xx01cyx/kuberboat.git
+          cd ${REPO_NAME}
+          if [ $? -ne 0 ]
+            then exit 1
+          fi
+          chmod +x ${START_STANDALONE_PATH}
+          chmod +x ${STOP_STANDALONE_PATH}
+          chmod +x ${TEST_ALL_PATH}
+          ./${START_STANDALONE_PATH}
+          ./${TEST_ALL_PATH}
+          ./${STOP_STANDALONE_PATH}
+          cd .. && rm -rf ${REPO_NAME}
 permissions:
   - role: admin
     members: []
