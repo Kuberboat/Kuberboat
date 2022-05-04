@@ -9,7 +9,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/uuid"
-	clientv3 "go.etcd.io/etcd/client/v3"
 	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
@@ -122,13 +121,13 @@ func (m *basicController) ApplyDeployment(deployment *core.Deployment) error {
 		} else {
 			existingDeployment.Spec.Replicas = deployment.Spec.Replicas
 			// Update the deployment metadata
-			if err := etcd.Put(fmt.Sprintf("/Deployments/%s/meta", deployment.Name), existingDeployment); err != nil {
+			if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), existingDeployment); err != nil {
 				return err
 			}
 		}
 	} else {
 		initDeployment(deployment)
-		if err := etcd.Put(fmt.Sprintf("/Deployments/%s/meta", deployment.Name), deployment); err != nil {
+		if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
 			return err
 		}
 		m.componentManager.SetDeployment(deployment, list.New())
@@ -163,11 +162,10 @@ func (m *basicController) morePods(deployment *core.Deployment, existingPods *li
 		existingPods.PushBack(p)
 		glog.Infof("DEPLOYMENT [%v]: added pod [%v]", deployment.Name, p.Name)
 	}
-	etcdKey := fmt.Sprintf("/Deployments/%s/meta", deployment.Name)
-	if err := etcd.Put(etcdKey, deployment); err != nil {
+	if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
 		glog.Errorf("failed to update deployment's metadata: %v", err)
 	}
-	if err := etcd.Put(etcdKey, etcd.GetPodNames(existingPods)); err != nil {
+	if err := etcd.Put(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), etcd.GetPodNames(existingPods)); err != nil {
 		glog.Errorf("failed to update deployment's corresponding pods: %v", err)
 	}
 	glog.Infof("DEPLOYMENT [%v]: expected to add %v pods, actually added %v", deployment.Name, numPodsToAdd, numPodsAdded)
@@ -200,7 +198,12 @@ func (m *basicController) fewerPods(deployment *core.Deployment, existingPods *l
 		updateDeploymentStatusOnPodRemoval(deployment, p)
 		glog.Infof("DEPLOYMENT [%v]: deleted pod [%v]", deployment.Name, p.Name)
 	}
-
+	if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
+		glog.Errorf("failed to update deployment's metadata: %v", err)
+	}
+	if err := etcd.Put(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), etcd.GetPodNames(existingPods)); err != nil {
+		glog.Errorf("failed to update deployment's corresponding pods: %v", err)
+	}
 	glog.Infof("DEPLOYMENT [%v]: expected to delete %v pods, actually deleted %v", deployment.Name, numPodsToDelete, numPodsDeleted)
 }
 
@@ -225,9 +228,7 @@ func (m *basicController) DeleteDeploymentByName(name string) error {
 			glog.Infof("DEPLOYMENT [%v]: deleted pod [%v]", name, podName)
 		}
 		// Delete the deployment in etcd and memory.
-		if err := etcd.Delete(fmt.Sprintf("/Deployments/%s", name), clientv3.WithPrefix()); err != nil {
-			return err
-		}
+		DeleteDeploymentInEtcd(name)
 		m.componentManager.DeleteDeploymentByName(name)
 		glog.Infof("DEPLOYMENT [%v]: successfully deleted", name)
 	} else {
@@ -282,6 +283,9 @@ func (m *basicController) handlePodDeletion(pod *core.Pod, deploymentName string
 	// If deployment is not found, then the pod must be deleted because its managing deployment is deleted.
 	if deployment := m.componentManager.GetDeploymentByName(deploymentName); deployment != nil {
 		updateDeploymentStatusOnPodRemoval(deployment, pod)
+		if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deploymentName), deployment); err != nil {
+			return err
+		}
 	}
 	return nil
 }
@@ -298,7 +302,7 @@ func (m *basicController) handlePodReady(pod *core.Pod) error {
 		// during pod creation. And we currently have no support for this scenario.
 		if isPodUpdated(deployment, pod) {
 			deployment.Status.UpdatedReplicas++
-			if err := etcd.Put(fmt.Sprintf("/Deployments/%s/meta", deployment.Name), deployment); err != nil {
+			if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
 				return err
 			}
 		} else {
@@ -360,4 +364,14 @@ func updateDeploymentStatusOnPodRemoval(deployment *core.Deployment, pod *core.P
 	if pod.Status.Phase == core.PodReady {
 		deployment.Status.ReadyReplicas--
 	}
+}
+
+func DeleteDeploymentInEtcd(deploymentName string) error {
+	if err := etcd.Delete(fmt.Sprintf("/Deployments/Meta/%s", deploymentName)); err != nil {
+		return err
+	}
+	if err := etcd.Delete(fmt.Sprintf("/Deployments/Pods/%s", deploymentName)); err != nil {
+		return err
+	}
+	return nil
 }

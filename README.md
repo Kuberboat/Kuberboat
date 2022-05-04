@@ -48,6 +48,22 @@ Then, run
 
 This script will start Prometheus based on the requirement of the project.
 
+### Kuberboat
+```bash
+make start
+make stop
+make restart # equal to stop and start
+```
+
+It will start a tmux session with five windows:
+1. shell
+2. log of kubelet
+3. log of apiserver
+4. log of prometheus
+5. log of etcd container
+and register your local node to the apiserver.
+
+If you want to start each components seperately, read as follows.
 ### API Server
 
 To start the API server, just run
@@ -75,11 +91,3 @@ kubectl get -h
 kubectl describe -h
 kubectl delete -h
 ```
-
-## All in one
-
-You should still have Prometheus and ETCD installed. Under the root directory of the project, just run 
-```bash
-./scripts/kuberboat/start_standalone.sh
-```
-You'll get a standalone Kuberboat cluster including one API Server and one Kubelet on your localhost machine. Logs could be found in `./out/log`.

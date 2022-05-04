@@ -7,7 +7,6 @@ import (
 
 	"github.com/golang/glog"
 	"github.com/google/uuid"
-	clientv3 "go.etcd.io/etcd/client/v3"
 
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
@@ -94,13 +93,12 @@ func (c *basicController) CreateService(service *core.Service) error {
 		}
 	}
 
-	etcdKey := fmt.Sprintf("/Services/%s/meta", service.Name)
 	// Store service metadata
-	if err = etcd.Put(etcdKey, service); err != nil {
+	if err = etcd.Put(fmt.Sprintf("/Services/Meta/%s", service.Name), service); err != nil {
 		return err
 	}
 	// Store map between service to its pods
-	if err = etcd.Put(etcdKey, etcd.GetPodNames(selectedPods)); err != nil {
+	if err = etcd.Put(fmt.Sprintf("/Services/Pods/%s", service.Name), etcd.GetPodNames(selectedPods)); err != nil {
 		return err
 	}
 	c.componentManager.SetService(service, selectedPods)
@@ -140,10 +138,7 @@ func (c *basicController) DeleteServiceByName(name string) error {
 		}
 	}
 
-	// TODO(WindowsXp): maybe we should check delete count and for the following case, it should be 2
-	if err := etcd.Delete(fmt.Sprintf("/Services/%s", service.Name), clientv3.WithPrefix()); err != nil {
-		return err
-	}
+	deleteServiceInEtcd(service.Name)
 	c.componentManager.DeleteServiceByName(name)
 
 	return nil
@@ -155,6 +150,17 @@ func (c *basicController) DeleteAllServices() error {
 		if err := c.DeleteServiceByName(service.Name); err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func deleteServiceInEtcd(serviceName string) error {
+	// TODO(WindowsXp): maybe we should check delete count and for the following case, it should be 2
+	if err := etcd.Delete(fmt.Sprintf("/Services/Meta/%s", serviceName)); err != nil {
+		return err
+	}
+	if err := etcd.Delete(fmt.Sprintf("/Services/Pods/%s", serviceName)); err != nil {
+		return err
 	}
 	return nil
 }

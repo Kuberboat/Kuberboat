@@ -7,7 +7,5 @@ log_dir=$proj_root_path/out/log
 # Stop API Server
 kill -9 `pgrep apiserver` &> /dev/null
 
-# TODO(wxp): Clear ETCD
-
 # Clear log
 rm $log_dir/apiserver.log

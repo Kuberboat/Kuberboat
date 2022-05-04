@@ -24,6 +24,11 @@ if [ $? -ne 0 ]
     then exit_code=1
 fi
 
+bash $parent_path/test_recover.sh
+if [ $? -ne 0 ]
+    then exit_code=1
+fi
+
 bash $parent_path/test_dns.sh
 if [ $? -ne 0 ]
     then exit_code=1

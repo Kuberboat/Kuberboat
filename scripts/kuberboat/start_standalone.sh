@@ -9,6 +9,12 @@ prometheus_dir=$proj_root_path/scripts/prometheus
 kill -9 `pgrep apiserver` &> /dev/null
 kill -9 `pgrep kubelet` &> /dev/null
 
+api_objects=("/Pods" "/Deployments" "/Services" "/Nodes")
+
+for i in "${api_objects[@]}"; do
+    etcdctl del $i --prefix
+done
+
 # Build
 cd $proj_root_path && make > /dev/null
 if [ $? -ne 0 ]
@@ -82,7 +88,7 @@ mkdir -p $log_dir
 ./out/bin/kubelet &> $log_dir/kubelet.log &
 
 # Wait for API Server and Kubelet to fully start
-sleep 1.5
+sleep 3
 declare -i exit_state
 exit_state=0
 

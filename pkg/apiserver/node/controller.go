@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"strings"
 	"time"
@@ -78,7 +79,7 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 		return err
 	}
 
-	err = etcd.Put(node.Name, node)
+	err = etcd.Put(fmt.Sprintf("/Nodes/%s", node.Name), node)
 	if err != nil {
 		bc.nodeManager.UnregisterNode(node.Name)
 		return err
