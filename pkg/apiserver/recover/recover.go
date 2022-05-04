@@ -31,9 +31,6 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {
 	if err != nil {
 		return err
 	}
-	if len(pods) == 0 {
-		return nil
-	}
 	nameToPods := make(map[string]*core.Pod)
 	for _, rawPod := range pods {
 		pod := rawPod.(core.Pod)
@@ -61,9 +58,10 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {
 		for _, podName := range podNames {
 			pod, ok := nameToPods[podName]
 			if !ok {
-				glog.Fatal("service has an unknown pod")
+				glog.Info("service has an unknown pod")
+			} else {
+				servicePods.PushBack(pod)
 			}
-			servicePods.PushBack(pod)
 		}
 		(*cm).SetService(&service, servicePods)
 	}
@@ -88,9 +86,10 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {
 		for _, podName := range podNames {
 			pod, ok := nameToPods[podName]
 			if !ok {
-				glog.Fatal("deployment has an unknown pod")
+				glog.Info("deployment has an unknown pod")
+			} else {
+				deploymentPods.PushBack(pod)
 			}
-			deploymentPods.PushBack(pod)
 		}
 		(*cm).SetDeployment(&deployment, deploymentPods)
 	}

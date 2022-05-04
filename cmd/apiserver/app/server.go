@@ -284,17 +284,6 @@ func StartServer(etcdServers string) {
 	if err := etcd.InitializeClient(etcdServers); err != nil {
 		glog.Fatal(err)
 	}
-	if err := recover.Recover(&nodeManager, &componentManager); err != nil {
-		glog.Fatal(err)
-	}
-	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
-	if err != nil {
-		glog.Fatal("Api server failed to connect!")
-	}
-	if err != nil {
-		glog.Fatal(err)
-	}
-
 	nodeManager = node.NewNodeManager()
 	componentManager = apiserver.NewComponentManager()
 	legacyManager = apiserver.NewLegacyManager(componentManager)
@@ -305,6 +294,17 @@ func StartServer(etcdServers string) {
 	nodeController = node.NewNodeController(nodeManager)
 	metricsManager, _ = metrics.NewMetricsManager(componentManager)
 	dnsController = dns.NewDNSController(componentManager)
+
+	if err := recover.Recover(&nodeManager, &componentManager); err != nil {
+		glog.Fatal(err)
+	}
+	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
+	if err != nil {
+		glog.Fatal("Api server failed to connect!")
+	}
+	if err != nil {
+		glog.Fatal(err)
+	}
 
 	apiServer := grpc.NewServer()
 	pb.RegisterApiServerCtlServiceServer(apiServer, &server{})

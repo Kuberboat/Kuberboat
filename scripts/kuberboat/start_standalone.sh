@@ -82,7 +82,7 @@ mkdir -p $log_dir
 ./out/bin/kubelet &> $log_dir/kubelet.log &
 
 # Wait for API Server and Kubelet to fully start
-sleep 1.5
+sleep 3
 declare -i exit_state
 exit_state=0
 

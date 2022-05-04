@@ -1,5 +1,5 @@
 #!/bin/bash
-# set -xe
+set -xe
 
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 source $parent_path/test_util.sh
@@ -30,13 +30,13 @@ test_recover() {
     sleep 2
 
     echo "restart apiserver"
-    $proj_root_path/out/bin/apiserver &>> $log_dir/kubelet.log &
+    $proj_root_path/out/bin/apiserver &>> $log_dir/apiserver.log &
     if [ -z $(pgrep apiserver) ]; then
         echo "Fail to restart Apiserver"
         exit -1
     fi
     sleep 5
-    if [ $(json_array_value "$($kubectl describe deployment $test_deployment_name)" Pods) != $pods]; then
+    if [ "$(json_array_value "$($kubectl describe deployment $test_deployment_name)" Pods)" != "$pods"]; then
         echo "Not consistency"
         exit -1
     fi
