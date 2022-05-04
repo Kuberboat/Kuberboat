@@ -147,7 +147,6 @@ func (c *basicController) DeleteServiceByName(name string) error {
 func (c *basicController) DeleteAllServices() error {
 	services := c.componentManager.ListServices()
 	for _, service := range services {
-		deleteServiceInEtcd(service.Name)
 		if err := c.DeleteServiceByName(service.Name); err != nil {
 			return err
 		}
