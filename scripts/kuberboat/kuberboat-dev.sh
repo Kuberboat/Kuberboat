@@ -1,4 +1,5 @@
 #!/bin/bash
+# set -xe
 
 parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
 proj_root_path=$parent_path/../..
@@ -15,7 +16,7 @@ start() {
     tmux new-window -t kuberboat-dev "tail -f ${log_dir}/apiserver.log"
     tmux new-window -t kuberboat-dev "tail -f ~/applog/prometheus/prometheus.log"
     # If you use local etcd, you may comment the following line
-    tmux new-window -t kuberboat-dev "tail | docker logs etcd"
+    tmux new-window -t kuberboat-dev "docker logs -f etcd"
     sleep 2
     $kubectl apply -f $proj_root_path/test/examples/node.yaml &> /dev/null
 }

@@ -297,6 +297,18 @@ func StartServer(etcdServers string) {
 }
 
 func recover() error {
+	// recover all the nodes
+	var nodeType core.Node
+	rawNodes, err := etcd.Get("/Nodes", nodeType, clientv3.WithPrefix())
+	if err != nil {
+		return err
+	}
+	for _, rawNode := range rawNodes {
+		node := rawNode.(core.Node)
+		if err := nodeManager.RegisterNode(&node); err != nil {
+			return err
+		}
+	}
 	// recover all the pods
 	var podType core.Pod
 	pods, err := etcd.Get("/Pods", podType, clientv3.WithPrefix())
@@ -341,7 +353,7 @@ func recover() error {
 	}
 	// recover all the deployments
 	var deploymentType core.Deployment
-	rawDeployments, err := etcd.Get("/Services/Meta", deploymentType, clientv3.WithPrefix())
+	rawDeployments, err := etcd.Get("/Deployments/Meta", deploymentType, clientv3.WithPrefix())
 	if err != nil {
 		return err
 	}
@@ -365,18 +377,6 @@ func recover() error {
 			deploymentPods.PushBack(pod)
 		}
 		componentManager.SetDeployment(&deployment, deploymentPods)
-	}
-	// recover all the nodes
-	var nodeType core.Node
-	rawNodes, err := etcd.Get("/Nodes", nodeType, clientv3.WithPrefix())
-	if err != nil {
-		return err
-	}
-	for _, rawNode := range rawNodes {
-		node := rawNode.(core.Node)
-		if err := nodeManager.RegisterNode(&node); err != nil {
-			return err
-		}
 	}
 	return nil
 }
