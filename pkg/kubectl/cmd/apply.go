@@ -8,7 +8,9 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strings"
 
+	valid "github.com/asaskevich/govalidator"
 	"github.com/spf13/cobra"
 	"gopkg.in/yaml.v2"
 	"p9t.io/kuberboat/pkg/api/core"
@@ -48,6 +50,8 @@ Examples:
 				applyDeployment(data)
 			case string(core.ServiceType):
 				applyService(data)
+			case string(core.DNSType):
+				applyDNS(data)
 			default:
 				log.Fatalf("%v is not supported", configKind.Kind)
 			}
@@ -119,4 +123,38 @@ func applyService(data []byte) {
 		log.Fatal(err)
 	}
 	fmt.Printf("Response status: %v ;Service created\n", response.Status)
+}
+
+func applyDNS(data []byte) {
+	var dns core.DNS
+	if err := yaml.Unmarshal(data, &dns); err != nil {
+		log.Fatalf("cannot unmarshal data: %v", err)
+	}
+	// Do some sanity checks for dns.
+	if len(dns.Name) == 0 {
+		log.Fatalf("name not specified")
+	}
+	if !valid.IsDNSName(dns.Spec.Host) {
+		log.Fatalf("host is not a valid domain name")
+	}
+	for _, mapping := range dns.Spec.Paths {
+		if len(mapping.Path) == 0 {
+			log.Fatalf("path not specified")
+		}
+		if mapping.Path[0] != '/' || strings.Contains(mapping.Path, " ") || strings.HasSuffix(mapping.Path, "/") {
+			log.Fatalf("invalid path")
+		}
+		if len(mapping.ServiceName) == 0 {
+			log.Fatalf("service name not specified")
+		}
+		if mapping.ServicePort == 0 {
+			log.Fatalf("service port not specified")
+		}
+	}
+	client := client.NewCtlClient()
+	response, err := client.CreateDNS(&dns)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response status: %v ;DNS created\n", response.Status)
 }

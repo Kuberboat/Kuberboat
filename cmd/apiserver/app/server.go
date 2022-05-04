@@ -11,6 +11,7 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/deployment"
+	"p9t.io/kuberboat/pkg/apiserver/dns"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
 	"p9t.io/kuberboat/pkg/apiserver/metrics"
 	"p9t.io/kuberboat/pkg/apiserver/node"
@@ -22,15 +23,16 @@ import (
 )
 
 // FIXME: Move the managers and controllers into a wrapper.
-var nodeManager = node.NewNodeManager()
-var componentManager = apiserver.NewComponentManager()
-var legacyManager = apiserver.NewLegacyManager(componentManager)
-var podScheduler = schedule.NewPodScheduler(nodeManager)
-var podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
-var serviceController, _ = service.NewServiceController(componentManager, nodeManager)
-var deploymentController = deployment.NewDeploymentController(componentManager, podController)
-var nodeController = node.NewNodeController(nodeManager)
-var metricsManager, _ = metrics.NewMetricsManager(componentManager)
+var nodeManager node.NodeManager
+var componentManager apiserver.ComponentManager
+var legacyManager apiserver.LegacyManager
+var podScheduler schedule.PodScheduler
+var podController pod.Controller
+var serviceController service.Controller
+var deploymentController deployment.Contoller
+var nodeController node.Controller
+var metricsManager metrics.MetricsManager
+var dnsController dns.Controller
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -267,6 +269,17 @@ func (*server) DescribeServices(ctx context.Context, req *pb.DescribeServicesReq
 	}, nil
 }
 
+func (*server) CreateDNS(ctx context.Context, req *pb.CreateDNSRequest) (*pb.DefaultResponse, error) {
+	var dns core.DNS
+	if err := json.Unmarshal(req.Dns, &dns); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	if err := dnsController.CreateDNS(&dns); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
 func StartServer(etcdServers string) {
 	if err := etcd.InitializeClient(etcdServers); err != nil {
 		glog.Fatal(err)
@@ -281,6 +294,18 @@ func StartServer(etcdServers string) {
 	if err != nil {
 		glog.Fatal(err)
 	}
+
+	nodeManager = node.NewNodeManager()
+	componentManager = apiserver.NewComponentManager()
+	legacyManager = apiserver.NewLegacyManager(componentManager)
+	podScheduler = schedule.NewPodScheduler(nodeManager)
+	podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
+	serviceController, _ = service.NewServiceController(componentManager, nodeManager)
+	deploymentController = deployment.NewDeploymentController(componentManager, podController)
+	nodeController = node.NewNodeController(nodeManager)
+	metricsManager, _ = metrics.NewMetricsManager(componentManager)
+	dnsController = dns.NewDNSController(componentManager)
+
 	apiServer := grpc.NewServer()
 	pb.RegisterApiServerCtlServiceServer(apiServer, &server{})
 	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})

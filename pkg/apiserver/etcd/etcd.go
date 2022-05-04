@@ -117,6 +117,21 @@ func Get(key string, valueType interface{}, opts ...clientv3.OpOption) ([]interf
 	}
 }
 
+func GetRaw(key string, opts ...clientv3.OpOption) ([]byte, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), REQUEST_TIMEOUT)
+	resp, err := client.Get(ctx, key, opts...)
+	cancel()
+	if err != nil {
+		return nil, err
+	}
+	for _, kv := range resp.Kvs {
+		if string(kv.Key) == key {
+			return kv.Value, nil
+		}
+	}
+	return nil, fmt.Errorf("key not found: %v", key)
+}
+
 // Delete is a wrapper of clientv3.Delete
 // Pass the key and the options like WithPrefix etc.
 func Delete(key string, opts ...clientv3.OpOption) error {

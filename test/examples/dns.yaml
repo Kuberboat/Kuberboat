@@ -5,5 +5,5 @@ spec:
   host: test.com
   paths:
   - path: /aaa 
-    service: mypod-replica-1
+    service: nginx-service
     port: 8088

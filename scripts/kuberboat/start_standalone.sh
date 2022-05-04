@@ -61,6 +61,17 @@ else
     echo "ETCD already started"
 fi
 
+# Start dns related components.
+$proj_root_path/scripts/dns/stop_dns.sh &> /dev/null
+$proj_root_path/scripts/dns/start_dns.sh
+if [ $? -ne 0 ]
+then
+    echo "Fail to set up DNS components"
+    exit -1
+else
+    echo "DNS components successfully started"
+fi
+
 # Create log directory
 mkdir -p $log_dir
 

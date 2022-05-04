@@ -1,0 +1,11 @@
+.:53 {
+    log
+    errors
+    health
+    etcd . {
+        fallthrough .
+        path /dns
+        endpoint http://xxxxxx:2379
+    }
+    forward . /etc/resolv.conf
+}

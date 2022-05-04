@@ -75,6 +75,11 @@ message DescribeDeploymentsResponse {
   bytes deployment_pod_names = 3;
   bytes not_found_deployments = 4;
 }
+
+message CreateDNSRequest {
+  bytes dns = 1;
+}
+
 // Service on API Server for Kubectl.
 service ApiServerCtlService {
   rpc GetPods(GetPodsRequest) returns(GetPodsResponse);
@@ -88,4 +93,5 @@ service ApiServerCtlService {
   rpc CreateDeployment(CreateDeploymentRequest) returns(default.DefaultResponse);
   rpc DeleteDeployment(DeleteDeploymentRequest) returns(default.DefaultResponse);
   rpc DescribeDeployments(DescribeDeploymentsRequest) returns (DescribeDeploymentsResponse);
+  rpc CreateDNS(CreateDNSRequest) returns(default.DefaultResponse);
 }

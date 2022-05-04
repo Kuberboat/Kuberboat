@@ -65,6 +65,17 @@ type ComponentManager interface {
 	// check the existence of the service. If the service does not exist, an empty array will be
 	// returned.
 	ListPodsByServiceName(serviceName string) *list.List
+
+	// SetDNS sets a DNS configuration into ComponentManager. This function will not check the existence of the
+	// DNS. To check for existence, you should call `DNSExistsByName`.
+	SetDNS(dns *core.DNS)
+	// DNSExistsByName checks whether a DNS of a specific name exists.
+	DNSExistsByName(name string) bool
+	// DeleteDNSByName deletes a DNS by name from ComponentManager. This function will not check
+	// the existence of the DNS.
+	DeleteDNSByName(name string)
+	// ListDNS lists all the DNS configurations present.
+	ListDNS() []*core.DNS
 }
 
 type componentManagerInner struct {
@@ -75,6 +86,8 @@ type componentManagerInner struct {
 	services map[string]*core.Service
 	// Stores the mapping from service name to service.
 	deployments map[string]*core.Deployment
+	// Stores the mapping from DNS name to DNS.
+	dns map[string]*core.DNS
 	// Stores the mapping from the name of a deployment to the pods it creates.
 	deploymentToPods map[string]*list.List
 	// Stores the mapping from the name of a service to the pods it selects by label.
@@ -87,6 +100,7 @@ func NewComponentManager() ComponentManager {
 		pods:             map[string]*core.Pod{},
 		services:         map[string]*core.Service{},
 		deployments:      map[string]*core.Deployment{},
+		dns:              map[string]*core.DNS{},
 		deploymentToPods: map[string]*list.List{},
 		servicesToPods:   map[string]*list.List{},
 	}
@@ -269,4 +283,33 @@ func (cm *componentManagerInner) ListPodsByServiceName(serviceName string) *list
 	cm.mtx.RLock()
 	defer cm.mtx.RUnlock()
 	return cm.servicesToPods[serviceName]
+}
+
+func (cm *componentManagerInner) SetDNS(dns *core.DNS) {
+	cm.mtx.Lock()
+	defer cm.mtx.Unlock()
+	cm.dns[dns.Name] = dns
+}
+
+func (cm *componentManagerInner) DNSExistsByName(name string) bool {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	_, ok := cm.dns[name]
+	return ok
+}
+
+func (cm *componentManagerInner) DeleteDNSByName(name string) {
+	cm.mtx.Lock()
+	defer cm.mtx.Unlock()
+	delete(cm.dns, name)
+}
+
+func (cm *componentManagerInner) ListDNS() []*core.DNS {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	dnss := make([]*core.DNS, 0, len(cm.dns))
+	for _, dns := range cm.dns {
+		dnss = append(dnss, dns)
+	}
+	return dnss
 }
