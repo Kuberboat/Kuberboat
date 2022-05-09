@@ -30,6 +30,9 @@ const (
 )
 
 type Controller interface {
+	// GetDNSs returns information about DNSs specified by dnsName.
+	// Return value is composed of DNSs that are found and DNs names that do not exist.
+	GetDNSs(all bool, dnsNames []string) ([]*core.DNS, []string)
 	// CreateDNS applies a DNS configuration to nginx and coredns.
 	// It will not override existing DNS configurations.
 	CreateDNS(*core.DNS) error
@@ -78,6 +81,28 @@ func NewDNSController(componentManager apiserver.ComponentManager) Controller {
 		componentManager: componentManager,
 		nginxConfigDir:   configDir,
 		nginxIP:          nginxIP,
+	}
+}
+
+func (c *basicController) GetDNSs(all bool, dnsNames []string) ([]*core.DNS, []string) {
+	if all {
+		return c.componentManager.ListDNS(), make([]string, 0)
+	} else {
+		found := make([]*core.DNS, 0)
+		notFound := make([]string, 0)
+		for _, name := range dnsNames {
+			if !c.componentManager.DNSExistsByName(name) {
+				notFound = append(notFound, name)
+			} else {
+				dns := c.componentManager.GetDNSByName(name)
+				if dns == nil {
+					glog.Errorf("dns missing event if cm claims otherwise")
+					continue
+				}
+				found = append(found, dns)
+			}
+		}
+		return found, notFound
 	}
 }
 

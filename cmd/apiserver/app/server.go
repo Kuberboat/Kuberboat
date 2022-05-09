@@ -280,6 +280,38 @@ func (*server) CreateDNS(ctx context.Context, req *pb.CreateDNSRequest) (*pb.Def
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
+func (*server) DescribeDNSs(ctx context.Context, req *pb.DescribeDNSsRequest) (*pb.DescribeDNSsResponse, error) {
+	foundDNSs, notFoundDNSs := dnsController.GetDNSs(req.All, req.DnsNames)
+	serializeErrorResponse := &pb.DescribeDNSsResponse{
+		Status:       -1,
+		Dnss:         nil,
+		NotFoundDnss: nil,
+	}
+
+	foundDNSsData, err := json.Marshal(foundDNSs)
+	if err != nil {
+		return serializeErrorResponse, err
+	}
+
+	notFoundDNSsData, err := json.Marshal(notFoundDNSs)
+	if err != nil {
+		return serializeErrorResponse, err
+	}
+
+	var status int32
+	if len(notFoundDNSs) > 0 {
+		status = -2
+	} else {
+		status = 0
+	}
+
+	return &pb.DescribeDNSsResponse{
+		Status:       status,
+		Dnss:         foundDNSsData,
+		NotFoundDnss: notFoundDNSsData,
+	}, nil
+}
+
 func StartServer(etcdServers string) {
 	if err := etcd.InitializeClient(etcdServers); err != nil {
 		glog.Fatal(err)

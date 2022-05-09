@@ -153,3 +153,12 @@ func (c *ctlClient) CreateDNS(dns *core.DNS) (*pb.DefaultResponse, error) {
 		Dns: data,
 	})
 }
+
+func (c *ctlClient) DescribeDNSs(all bool, names []string) (*pb.DescribeDNSsResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	return c.client.DescribeDNSs(ctx, &pb.DescribeDNSsRequest{
+		All:      all,
+		DnsNames: names,
+	})
+}

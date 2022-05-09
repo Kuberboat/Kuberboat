@@ -38,7 +38,13 @@ Examples:
   kubectl describe deployment deploymentName1 deploymentName2
   
   # Describe all deployments
-  kubectl describe deployments`,
+  kubectl describe deployments,
+
+  # Describe a dns configuration
+  kubectl describe dns dnsName1 dnsName2
+
+  # Describe all dns configurations
+  kubectl describe dnss`,
 	Args: cobra.MinimumNArgs(1),
 	Run: func(cmd *cobra.Command, args []string) {
 		resourceType := args[0]
@@ -55,6 +61,10 @@ Examples:
 			describeDeployments(args[1:])
 		case "deployments":
 			describeDeployments(nil)
+		case "dns":
+			describeDNSs(args[1:])
+		case "dnss":
+			describeDNSs(nil)
 		default:
 			log.Fatalf("%v is not a supported resource type", resourceType)
 		}
@@ -210,5 +220,40 @@ func describeDeployments(deploymentNames []string) {
 			log.Fatal(err)
 		}
 		fmt.Printf("The following deployments are not found: %v\n", notFoundDeployments)
+	}
+}
+
+func describeDNSs(dnsNames []string) {
+	client := client.NewCtlClient()
+	var resp *pb.DescribeDNSsResponse
+	var err error
+	if dnsNames == nil {
+		resp, err = client.DescribeDNSs(true, nil)
+	} else {
+		resp, err = client.DescribeDNSs(false, dnsNames)
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var foundDNSs []*core.DNS
+	var notFoundDNSs []string
+	err = json.Unmarshal(resp.Dnss, &foundDNSs)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	prettyjson, err := json.MarshalIndent(foundDNSs, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(prettyjson))
+	if resp.Status == -2 {
+		err = json.Unmarshal(resp.NotFoundDnss, &notFoundDNSs)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("The following pods are not found: %v\n", notFoundDNSs)
 	}
 }

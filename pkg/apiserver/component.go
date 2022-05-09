@@ -74,6 +74,8 @@ type ComponentManager interface {
 	// DeleteDNSByName deletes a DNS by name from ComponentManager. This function will not check
 	// the existence of the DNS.
 	DeleteDNSByName(name string)
+	// GetDNSByName gets a DNS from ComponentManager by name.
+	GetDNSByName(name string) *core.DNS
 	// ListDNS lists all the DNS configurations present.
 	ListDNS() []*core.DNS
 }
@@ -302,6 +304,12 @@ func (cm *componentManagerInner) DeleteDNSByName(name string) {
 	cm.mtx.Lock()
 	defer cm.mtx.Unlock()
 	delete(cm.dns, name)
+}
+
+func (cm *componentManagerInner) GetDNSByName(name string) *core.DNS {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	return cm.dns[name]
 }
 
 func (cm *componentManagerInner) ListDNS() []*core.DNS {

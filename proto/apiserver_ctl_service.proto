@@ -80,6 +80,18 @@ message CreateDNSRequest {
   bytes dns = 1;
 }
 
+message DescribeDNSsRequest {
+  bool all = 1;
+  repeated string dns_names = 2;
+}
+
+message DescribeDNSsResponse {
+  // -2 status means some pods are not found.
+  int32 status = 1;
+  bytes dnss = 2;
+  bytes not_found_dnss = 3;
+}
+
 // Service on API Server for Kubectl.
 service ApiServerCtlService {
   rpc GetPods(GetPodsRequest) returns(GetPodsResponse);
@@ -94,4 +106,5 @@ service ApiServerCtlService {
   rpc DeleteDeployment(DeleteDeploymentRequest) returns(default.DefaultResponse);
   rpc DescribeDeployments(DescribeDeploymentsRequest) returns (DescribeDeploymentsResponse);
   rpc CreateDNS(CreateDNSRequest) returns(default.DefaultResponse);
+  rpc DescribeDNSs(DescribeDNSsRequest) returns(DescribeDNSsResponse);
 }
