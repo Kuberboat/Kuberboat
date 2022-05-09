@@ -1,5 +1,11 @@
 #!/bin/bash
 
+if [ -z `pgrep etcd` ]
+then 
+    echo "etcd not started"
+    exit 0
+fi
+
 api_objects=("/Pods" "/Deployments" "/Services" "/Nodes")
 
 echo "clearing etcd"

@@ -30,7 +30,7 @@ else
     echo "Prometheus already started"
 fi
 
-# Start ETCD
+# Start etcd
 docker start etcd &> /dev/null
 if [ $? -ne 0 ]
 then
@@ -54,13 +54,13 @@ then
         --enable-v2 > /dev/null
     if [ $? -eq 0 ]
     then
-        echo "ETCD successfully started"
+        echo "etcd successfully started"
     else
-        echo "Fail to start ETCD"
+        echo "Fail to start etcd"
         exit -1
     fi
 else
-    echo "ETCD already started"
+    echo "etcd already started"
 fi
 
 # Start dns related components.
