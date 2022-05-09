@@ -9,11 +9,7 @@ prometheus_dir=$proj_root_path/scripts/prometheus
 kill -9 `pgrep apiserver` &> /dev/null
 kill -9 `pgrep kubelet` &> /dev/null
 
-api_objects=("/Pods" "/Deployments" "/Services" "/Nodes")
-
-for i in "${api_objects[@]}"; do
-    etcdctl del $i --prefix
-done
+bash $proj_root_path/scripts/kuberboat/clear_etcd.sh
 
 # Build
 cd $proj_root_path && make > /dev/null

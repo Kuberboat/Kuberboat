@@ -11,6 +11,9 @@ bash $parent_path/stop_api_server.sh &> /dev/null
 # Stop Kubelet
 kill -9 `pgrep kubelet` &> /dev/null
 
+# Clear etcd.
+bash $proj_root_path/scripts/kuberboat/clear_etcd.sh
+
 # Stop DNS components
 $proj_root_path/scripts/dns/stop_dns.sh
 
