@@ -42,9 +42,9 @@ then
         --restart always \
         -v $nginx_config_dir:/etc/nginx/conf.d \
         nginx:1.21.6 &> /dev/null && \
-    echo "nginx container started, name is ${nginx_container_name}"
+    echo "NGINX container started, name is ${nginx_container_name}"
 else
-    echo "nginx container already started"
+    echo "NGINX container already started"
 fi
 
 # Write nginx IP to etcd.
@@ -66,9 +66,9 @@ then
         -v $coredns_config_dir:/etc/coredns \
         coredns/coredns:1.9.1 \
         -conf /etc/coredns/Corefile &> /dev/null && \
-    echo "coredns container started, name is ${coredns_container_name}"
+    echo "CoreDNS container started, name is ${coredns_container_name}"
 else
-    echo "coredns container already started"
+    echo "CoreDNS container already started"
 fi
 
 # Write CoreDNS IP to etcd.
