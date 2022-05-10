@@ -11,6 +11,7 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
+	"p9t.io/kuberboat/pkg/apiserver/metrics"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 )
 
@@ -36,6 +37,10 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {
 			(*nm).UnregisterNode(node.Name)
 			return err
 		}
+	}
+	err = metrics.GeneratePrometheusTargets((*nm).RegisteredNodes())
+	if err != nil {
+		return err
 	}
 	// recover all the pods
 	var podType core.Pod
