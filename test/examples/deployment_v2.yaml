@@ -1,0 +1,29 @@
+kind: Deployment
+metadata:
+  name: deployment-example
+spec:
+  replicas: 5
+  rollingUpdate:
+    maxSurge: 3
+    maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app: mydeployment
+        env: dev
+        version: v2
+    spec:
+      containers:
+      - name: redis
+        image: redis:7.0-rc3
+        ports: 
+          - 6379
+          - 5001
+        resources:
+          cpu: 1
+          memory: 128000000
+        volumeMounts:
+          - name: redis-storage
+            mountPath: /data/redis
+      volumes:
+        - redis-storage
