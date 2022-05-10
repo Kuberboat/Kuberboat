@@ -36,7 +36,7 @@ test_recover() {
         exit -1
     fi
     sleep 5
-    if [ "$(json_array_value "$($kubectl describe deployment $test_deployment_name)" Pods)" != "$pods"]; then
+    if [ "$(json_array_value "$($kubectl describe deployment $test_deployment_name)" Pods)" != "$pods" ]; then
         echo "Not consistency"
         exit -1
     fi
