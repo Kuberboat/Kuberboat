@@ -447,12 +447,12 @@ func DeleteDeploymentInEtcd(deploymentName string) error {
 }
 
 func computeRollingUpdatePodDeleteion(deployment *core.Deployment, pods *list.List) int {
-	var readyReplcas int64 = int64(deployment.Status.ReadyReplicas)
+	var readyReplicas int64 = int64(deployment.Status.ReadyReplicas)
 	var outdatedReplicas int64 = int64(len(findOutdatedPods(deployment, pods)))
 	var replicas int64 = int64(deployment.Spec.Replicas)
 	var maxUnavailable int64 = int64(deployment.Spec.RollingUpdate.MaxUnavailable)
 	var minReadyReplicas int64 = api.Max64(0, replicas-maxUnavailable)
-	return int(api.Min64(outdatedReplicas, api.Max64(0, readyReplcas-minReadyReplicas)))
+	return int(api.Min64(outdatedReplicas, api.Max64(0, readyReplicas-minReadyReplicas)))
 }
 
 func computeRollingUpdatePodCreation(deployment *core.Deployment, pods *list.List) int {
