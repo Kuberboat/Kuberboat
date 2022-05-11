@@ -165,7 +165,7 @@ func (m *basicController) morePods(deployment *core.Deployment, existingPods *li
 	if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
 		glog.Errorf("failed to update deployment's metadata: %v", err)
 	}
-	if err := etcd.Put(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), etcd.GetPodNames(existingPods)); err != nil {
+	if err := etcd.Put(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), core.GetPodNames(existingPods)); err != nil {
 		glog.Errorf("failed to update deployment's corresponding pods: %v", err)
 	}
 	glog.Infof("DEPLOYMENT [%v]: expected to add %v pods, actually added %v", deployment.Name, numPodsToAdd, numPodsAdded)
@@ -201,7 +201,7 @@ func (m *basicController) fewerPods(deployment *core.Deployment, existingPods *l
 	if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
 		glog.Errorf("failed to update deployment's metadata: %v", err)
 	}
-	if err := etcd.Put(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), etcd.GetPodNames(existingPods)); err != nil {
+	if err := etcd.Put(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), core.GetPodNames(existingPods)); err != nil {
 		glog.Errorf("failed to update deployment's corresponding pods: %v", err)
 	}
 	glog.Infof("DEPLOYMENT [%v]: expected to delete %v pods, actually deleted %v", deployment.Name, numPodsToDelete, numPodsDeleted)

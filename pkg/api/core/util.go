@@ -1,6 +1,7 @@
 package core
 
 import (
+	"container/list"
 	"fmt"
 )
 
@@ -12,4 +13,12 @@ func GetPodSpecificName(pod *Pod, name string) string {
 
 func GetPodSpecificPauseName(pod *Pod) string {
 	return GetPodSpecificName(pod, "pause")
+}
+
+func GetPodNames(pods *list.List) []string {
+	podNames := make([]string, 0, pods.Len())
+	for e := pods.Front(); e != nil; e = e.Next() {
+		podNames = append(podNames, e.Value.(*Pod).Name)
+	}
+	return podNames
 }

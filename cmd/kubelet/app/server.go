@@ -85,6 +85,22 @@ func (s *server) DeleteService(ctx context.Context, req *pb.KubeletDeleteService
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
+func (s *server) AddPodToServices(ctx context.Context, req *pb.KubeletUpdateServiceRequest) (*pb.DefaultResponse, error) {
+	err := kubeProxy.AddPodToServices(req.ServiceNames, req.PodName, req.PodIp)
+	if err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (s *server) DeletePodFromServices(ctx context.Context, req *pb.KubeletUpdateServiceRequest) (*pb.DefaultResponse, error) {
+	err := kubeProxy.DeletePodFromServices(req.ServiceNames, req.PodName)
+	if err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
 func StartServer() {
 	kubelet = kl.NewKubelet()
 	kubeProxy = kl.NewKubeProxy()

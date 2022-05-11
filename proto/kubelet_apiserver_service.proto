@@ -30,6 +30,12 @@ message KubeletDeleteServiceRequest {
     string service_name = 1;
 }
 
+message KubeletUpdateServiceRequest {
+    repeated string service_names = 1;
+    string pod_name = 2;
+    string pod_ip = 3;
+}
+
 // Service on API Server for Kubectl.
 service KubeletApiServerService {
     rpc NotifyRegistered(NotifyRegisteredRequest) returns(default.DefaultResponse);
@@ -37,4 +43,6 @@ service KubeletApiServerService {
     rpc DeletePod(KubeletDeletePodRequest) returns(default.DefaultResponse);
     rpc CreateService(KubeletCreateServiceRequest) returns(default.DefaultResponse);
     rpc DeleteService(KubeletDeleteServiceRequest) returns(default.DefaultResponse);
+    rpc AddPodToServices(KubeletUpdateServiceRequest) returns(default.DefaultResponse);
+    rpc DeletePodFromServices(KubeletUpdateServiceRequest) returns(default.DefaultResponse);
 }

@@ -12,6 +12,7 @@ type MetaManager interface {
 	DeleteServiceClusterIP(serviceName string)
 	DeleteServiceChains(serviceName string)
 	DeletePodChains(serviceChainName string)
+	DeletePodChainFromServiceChain(podName string, serviceChainName string)
 
 	ServiceExists(serviceName string) bool
 }
@@ -69,6 +70,17 @@ func (bm *basicManager) DeleteServiceChains(serviceName string) {
 
 func (bm *basicManager) DeletePodChains(serviceChainName string) {
 	delete(bm.podChains, serviceChainName)
+}
+
+func (bm *basicManager) DeletePodChainFromServiceChain(podName string, serviceChainName string) {
+	podChains := bm.podChains[serviceChainName]
+	for i, podChain := range podChains {
+		if podChain.PodName == podName {
+			podChains = append(podChains[:i], podChains[i+1:]...)
+			break
+		}
+	}
+	bm.podChains[serviceChainName] = podChains
 }
 
 func (bm *basicManager) ServiceExists(serviceName string) bool {

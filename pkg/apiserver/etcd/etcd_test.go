@@ -84,7 +84,7 @@ func TestGetNames(t *testing.T) {
 		pods.PushBack(&newPod)
 	}
 	k := "/Services/Pods/test-service"
-	err = Put(k, GetPodNames(pods))
+	err = Put(k, core.GetPodNames(pods))
 	assert.Nil(err)
 	var podNames []string
 	rawPodNames, err := Get(k, podNames)
