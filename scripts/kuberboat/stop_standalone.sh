@@ -1,14 +1,17 @@
 #!/bin/bash
 
-parent_path=$( cd "$(dirname "${BASH_SOURCE[0]}")" ; pwd -P )
+parent_path=$(
+	cd "$(dirname "${BASH_SOURCE[0]}")"
+	pwd -P
+)
 proj_root_path=$parent_path/../..
 log_dir=$proj_root_path/out/log
 
 # Stop Kubelet
-kill -9 `pgrep kubelet` &> /dev/null
+kill -9 $(pgrep kubelet) &>/dev/null
 
 # Stop API Server
-kill -9 `pgrep apiserver` &> /dev/null
+kill -9 $(pgrep apiserver) &>/dev/null
 
 # Clear etcd.
 chmod +x $proj_root_path/scripts/kuberboat/clear_etcd.sh

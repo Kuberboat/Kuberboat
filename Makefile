@@ -11,6 +11,8 @@ KUBELET_OBJ = kubelet
 KUBECTL_SRC = ./cmd/kubectl/kubectl.go
 KUBECTL_OBJ = kubectl
 SCRIPTS_DIR = ./scripts/kuberboat
+SHFMT_FLAG = shfmt
+XARGS_FLAG = xargs
 
 $(shell mkdir -p $(BUILD_DIR))
 
@@ -36,6 +38,7 @@ proto:
 .PHONY: fmt
 fmt:
 	@gofmt -s -w $(SOURCE_DIRS)
+	$(SHFMT_FLAG) -f . | $(XARGS_FLAG) $(SHFMT_FLAG) -w
 
 .PHONY: imports
 imports:
