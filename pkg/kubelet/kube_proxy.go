@@ -18,6 +18,10 @@ type KubeProxy interface {
 		podNames []string, podIPs []string) error
 	// DeleteService deletes a service by removing relevant chains and rules in kernel iptables.
 	DeleteService(serviceName string) error
+	// AddPodToServices adds a pod to an existing service by adding the rules in kernel iptables.
+	AddPodToServices(serviceNames []string, podName string, podIP string) error
+	// DeletePodFromService deletes a pod from an existing service by rewriting all the rules.
+	DeletePodFromServices(serviceNames []string, podName string) error
 }
 
 type kubeProxyInner struct {
@@ -70,7 +74,7 @@ func (kp *kubeProxyInner) CreateService(
 			// Create an iptables chain for each pod in the service.
 			podChainName := kp.iptablesClient.CreatePodChain()
 
-			// Add a DNAT rule to the chain.
+			// Add a jump-to-mark rule and a DNAT rule to the chain.
 			err := kp.iptablesClient.ApplyPodChainRules(podChainName, podIP, servicePort.TargetPort)
 			if err != nil {
 				return err
@@ -141,4 +145,113 @@ func (kp *kubeProxyInner) DeleteService(serviceName string) error {
 	kp.serviceMetaManager.DeleteServiceClusterIP(serviceName)
 
 	return nil
+}
+
+func (kp *kubeProxyInner) AddPodToServices(serviceNames []string, podName string, podIP string) error {
+	kp.mtx.Lock()
+	defer kp.mtx.Unlock()
+
+	var err error = nil
+	notExistServices := make([]string, 0)
+
+	for _, serviceName := range serviceNames {
+		if !kp.serviceMetaManager.ServiceExists(serviceName) {
+			notExistServices = append(notExistServices, serviceName)
+			continue
+		}
+
+		serviceChains := kp.serviceMetaManager.GetServiceChains(serviceName)
+		for _, serviceChain := range serviceChains {
+			podChains := kp.serviceMetaManager.GetPodChains(serviceChain.ChainName)
+			chainNum := len(podChains)
+
+			// Create an iptables chain for the new pod in the service.
+			podChainName := kp.iptablesClient.CreatePodChain()
+
+			// Add a jump-to-mark rule and a DNAT rule to the chain.
+			err = kp.iptablesClient.ApplyPodChainRules(
+				podChainName,
+				podIP,
+				serviceChain.ServicePort.TargetPort,
+			)
+			if err != nil {
+				continue
+			}
+
+			// Add a rule that jumps to the chain in the service iptables chain.
+			err = kp.iptablesClient.ApplyPodChain(
+				serviceName,
+				serviceChain.ChainName,
+				podName,
+				podChainName,
+				chainNum+1,
+			)
+			if err != nil {
+				continue
+			}
+
+			// Update metadata.
+			podChain := kubeproxy.PodChain{
+				ChainName: podChainName,
+				PodName:   podName,
+				PodIP:     podIP,
+			}
+			kp.serviceMetaManager.AddPodChain(serviceChain.ChainName, &podChain)
+		}
+	}
+
+	if len(notExistServices) != 0 {
+		err = fmt.Errorf("no such service to add pod to: %v", notExistServices)
+	}
+
+	return err
+}
+
+func (kp *kubeProxyInner) DeletePodFromServices(serviceNames []string, podName string) error {
+	kp.mtx.Lock()
+	defer kp.mtx.Unlock()
+
+	var err error = nil
+	notExistServices := make([]string, 0)
+
+	for _, serviceName := range serviceNames {
+		if !kp.serviceMetaManager.ServiceExists(serviceName) {
+			notExistServices = append(notExistServices, serviceName)
+			continue
+		}
+
+		serviceChains := kp.serviceMetaManager.GetServiceChains(serviceName)
+		for _, serviceChain := range serviceChains {
+			// Clear the service chain in order to reassign round robin number for the rest pods
+			kp.iptablesClient.ClearServiceChain(serviceName, serviceChain.ChainName)
+
+			podChains := kp.serviceMetaManager.GetPodChains(serviceChain.ChainName)
+			roundRobin := 0
+			for _, podChain := range podChains {
+				if podChain.PodName == podName {
+					// Remove the chain of the deleted pod
+					kp.iptablesClient.DeletePodChain(podChain.PodName, podChain.ChainName)
+				} else {
+					// Add a rule that jumps to the chain in the service iptables chain.
+					roundRobin++
+					err = kp.iptablesClient.ApplyPodChain(
+						serviceName,
+						serviceChain.ChainName,
+						podChain.PodName,
+						podChain.ChainName,
+						roundRobin,
+					)
+				}
+			}
+
+			// Update metadata
+			kp.serviceMetaManager.DeletePodChainFromServiceChain(podName, serviceChain.ChainName)
+		}
+	}
+
+	if len(notExistServices) != 0 {
+		err = fmt.Errorf("no such service to delete pod from: %v", notExistServices)
+	}
+
+	return err
 }

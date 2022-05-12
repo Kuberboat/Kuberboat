@@ -348,7 +348,7 @@ func (ic *iptablesClientInner) ApplyPodChain(
 	podChainName string,
 	num int,
 ) error {
-	// Add a rule of jumping to KUBERBOAT-SVC-<podChainID> chain.
+	// Add a rule of jumping to KUBERBOAT-SEP-<podChainID> chain.
 	err := ic.iptables.Insert(
 		NatTableName,
 		serviceChainName,

@@ -61,6 +61,9 @@ type ComponentManager interface {
 	ServiceExistsByName(name string) bool
 	// ListServices lists all the services present.
 	ListServices() []*core.Service
+	// ListServicesByLabels lists all the services whose labels match with the parameter. Returns the name
+	// of the services.
+	ListServicesByLabels(labels *map[string]string) []string
 	// ListPodsByServiceName lists all the pods given the name of a service. This function will not
 	// check the existence of the service. If the service does not exist, an empty array will be
 	// returned.
@@ -277,6 +280,18 @@ func (cm *componentManagerInner) ListServices() []*core.Service {
 	services := make([]*core.Service, 0, len(cm.services))
 	for _, service := range cm.services {
 		services = append(services, service)
+	}
+	return services
+}
+
+func (cm *componentManagerInner) ListServicesByLabels(labels *map[string]string) []string {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	services := make([]string, 0)
+	for _, service := range cm.services {
+		if reflect.DeepEqual(*labels, service.Spec.Selector) {
+			services = append(services, service.Name)
+		}
 	}
 	return services
 }

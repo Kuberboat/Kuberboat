@@ -2,7 +2,6 @@ package kubelet
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -81,9 +80,6 @@ func NewKubelet() Kubelet {
 }
 
 func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) error {
-	if kl.apiClient != nil {
-		return errors.New("api server client alreay exists")
-	}
 	apiClient, err := client.NewKubeletClient(apiserverStatus.IP, apiserverStatus.Port)
 	if err != nil {
 		return err

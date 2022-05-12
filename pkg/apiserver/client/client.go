@@ -92,3 +92,20 @@ func (c *ApiserverClient) DeleteService(serviceName string) (*pb.DefaultResponse
 		ServiceName: serviceName,
 	})
 }
+
+func (c *ApiserverClient) AddPodToServices(serviceNames []string, podName string, podIP string) (*pb.DefaultResponse, error) {
+	ctx := context.Background()
+	return c.kubeletClient.AddPodToServices(ctx, &pb.KubeletUpdateServiceRequest{
+		ServiceNames: serviceNames,
+		PodName:      podName,
+		PodIp:        podIP,
+	})
+}
+
+func (c *ApiserverClient) DeletePodFromServices(serviceNames []string, podName string) (*pb.DefaultResponse, error) {
+	ctx := context.Background()
+	return c.kubeletClient.DeletePodFromServices(ctx, &pb.KubeletUpdateServiceRequest{
+		ServiceNames: serviceNames,
+		PodName:      podName,
+	})
+}

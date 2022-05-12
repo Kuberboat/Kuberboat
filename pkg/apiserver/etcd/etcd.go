@@ -1,7 +1,6 @@
 package etcd
 
 import (
-	"container/list"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -32,14 +31,6 @@ func InitializeClient(etcdServers string) error {
 	}
 	client = cli
 	return nil
-}
-
-func GetPodNames(pods *list.List) []string {
-	podNames := make([]string, 0, pods.Len())
-	for e := pods.Front(); e != nil; e = e.Next() {
-		podNames = append(podNames, e.Value.(*core.Pod).Name)
-	}
-	return podNames
 }
 
 // Put is a wrapper of clientv3.Put

@@ -33,6 +33,7 @@ type Controller interface {
 }
 
 type basicController struct {
+	mtx sync.Mutex
 	// componentManager stores the components and the dependencies between them.
 	componentManager apiserver.ComponentManager
 	// nodeManager provides grpc client to pod controller.
@@ -49,14 +50,20 @@ func NewServiceController(
 	if err != nil {
 		return nil, err
 	}
-	return &basicController{
+	controller := &basicController{
 		componentManager:  componentManager,
 		nodeManager:       nodeManager,
 		clusterIPAssigner: *clusterIPAssigner,
-	}, nil
+	}
+	apiserver.SubscribeToEvent(controller, apiserver.PodReady)
+	apiserver.SubscribeToEvent(controller, apiserver.PodDeletion)
+	return controller, nil
 }
 
 func (c *basicController) CreateService(service *core.Service) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
 	if c.componentManager.ServiceExistsByName(service.Name) {
 		return fmt.Errorf("service already exists: %v", service.Name)
 	}
@@ -98,7 +105,7 @@ func (c *basicController) CreateService(service *core.Service) error {
 		return err
 	}
 	// Store map between service to its pods
-	if err = etcd.Put(fmt.Sprintf("/Services/Pods/%s", service.Name), etcd.GetPodNames(selectedPods)); err != nil {
+	if err = etcd.Put(fmt.Sprintf("/Services/Pods/%s", service.Name), core.GetPodNames(selectedPods)); err != nil {
 		return err
 	}
 	c.componentManager.SetService(service, selectedPods)
@@ -107,6 +114,9 @@ func (c *basicController) CreateService(service *core.Service) error {
 }
 
 func (c *basicController) DeleteServiceByName(name string) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
 	if !c.componentManager.ServiceExistsByName(name) {
 		return fmt.Errorf("no such service: %v", name)
 	}
@@ -199,4 +209,87 @@ func (c *basicController) DescribeServices(all bool, names []string) ([]*core.Se
 		}
 		return foundServices, servicePods, notFoundServices
 	}
+}
+
+func (c *basicController) HandleEvent(event apiserver.Event) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
+	var err error = nil
+
+	switch event.Type() {
+	case apiserver.PodReady:
+		podName := event.(*apiserver.PodReadyEvent).PodName
+		err = c.handlePodReady(podName)
+	case apiserver.PodDeletion:
+		pod := event.(*apiserver.PodDeletionEvent).Pod
+		err = c.handlePodDeletion(pod)
+	}
+
+	if err != nil {
+		glog.Error(err)
+	}
+}
+
+func (c *basicController) handlePodReady(podName string) error {
+	pod := c.componentManager.GetPodByName(podName)
+	serviceNames := c.componentManager.ListServicesByLabels(&pod.Labels)
+	// No service need update
+	if len(serviceNames) == 0 {
+		return nil
+	}
+
+	clients := c.nodeManager.Clients()
+	errors := make(chan error, len(clients))
+	var wg sync.WaitGroup
+	wg.Add(len(clients))
+	for _, cli := range clients {
+		go func(cli *client.ApiserverClient) {
+			defer wg.Done()
+			_, err := cli.AddPodToServices(serviceNames, podName, pod.Status.PodIP)
+			errors <- err
+		}(cli)
+	}
+	go func() {
+		wg.Wait()
+		close(errors)
+	}()
+
+	for err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (c *basicController) handlePodDeletion(pod *core.Pod) error {
+	serviceNames := c.componentManager.ListServicesByLabels(&pod.Labels)
+	// No service need update
+	if len(serviceNames) == 0 {
+		return nil
+	}
+
+	clients := c.nodeManager.Clients()
+	errors := make(chan error, len(clients))
+	var wg sync.WaitGroup
+	wg.Add(len(clients))
+	for _, cli := range clients {
+		go func(cli *client.ApiserverClient) {
+			defer wg.Done()
+			_, err := cli.DeletePodFromServices(serviceNames, pod.Name)
+			errors <- err
+		}(cli)
+	}
+	go func() {
+		wg.Wait()
+		close(errors)
+	}()
+
+	for err := range errors {
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

@@ -3,12 +3,15 @@ package recover
 import (
 	"container/list"
 	"fmt"
+	"os"
 
 	"github.com/golang/glog"
 	clientv3 "go.etcd.io/etcd/client/v3"
+	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
+	"p9t.io/kuberboat/pkg/apiserver/metrics"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 )
 
@@ -24,6 +27,20 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {
 		if err := (*nm).RegisterNode(&node); err != nil {
 			return err
 		}
+		client := (*nm).ClientByName(node.Name)
+		r, err := client.NotifyRegistered(&core.ApiserverStatus{
+			IP:   os.Getenv(api.ApiServerIP),
+			Port: core.APISERVER_PORT,
+		})
+		if err != nil || r.Status != 0 {
+			glog.Errorf("cannot notify worker")
+			(*nm).UnregisterNode(node.Name)
+			return err
+		}
+	}
+	err = metrics.GeneratePrometheusTargets((*nm).RegisteredNodes())
+	if err != nil {
+		return err
 	}
 	// recover all the pods
 	var podType core.Pod
