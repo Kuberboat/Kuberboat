@@ -115,19 +115,26 @@ func (m *basicController) ApplyDeployment(deployment *core.Deployment) error {
 	isDeploymentExistent := m.componentManager.DeploymentExistsByName(deployment.Name)
 	if isDeploymentExistent {
 		existingDeployment := m.componentManager.GetDeploymentByName(deployment.Name)
+
+		// Trigger rolling update by setting updatedPods to 0.
 		if !isDeploymentUpdated(existingDeployment, deployment) {
-			// TODO(zhidong.guo): Mark the pod as being rolling updated.
-			return errors.New("rolling update not implemented")
-		} else {
-			existingDeployment.Spec.Replicas = deployment.Spec.Replicas
-			// Update the deployment metadata
-			if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), existingDeployment); err != nil {
-				return err
+			if deployment.Spec.RollingUpdate.MaxSurge == 0 && deployment.Spec.RollingUpdate.MaxUnavailable == 0 {
+				return errors.New("cannot trigger rolling update when maxSurge and maxUnavailable are both 0")
 			}
+			updateDeploymentTemplate(existingDeployment, deployment)
+			existingDeployment.Status.UpdatedReplicas = 0
+		}
+		existingDeployment.Spec.Replicas = deployment.Spec.Replicas
+		existingDeployment.Spec.RollingUpdate = deployment.Spec.RollingUpdate
+
+		// Update the deployment metadata.
+		// Should have updated etcd before modifying existingDeployment.
+		if err := setDeploymentInEtcd(deployment.Name, existingDeployment); err != nil {
+			return err
 		}
 	} else {
 		initDeployment(deployment)
-		if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
+		if err := setDeploymentInEtcd(deployment.Name, deployment); err != nil {
 			return err
 		}
 		m.componentManager.SetDeployment(deployment, list.New())
@@ -144,7 +151,7 @@ func (m *basicController) morePods(deployment *core.Deployment, existingPods *li
 	glog.Infof("DEPLOYMENT [%v]: adding %v pods", deployment.Name, numPodsToAdd)
 	numPodsAdded := 0
 	// Create new pods from template. Keep creating even if it fails.
-	specHash := api.Hash(deployment.Spec)
+	specHash := computeSpecHash(deployment)
 	for i := 0; i < int(numPodsToAdd); i++ {
 		p := &core.Pod{Kind: core.PodType}
 		p.Name = getPodName(deployment, specHash)
@@ -172,6 +179,7 @@ func (m *basicController) morePods(deployment *core.Deployment, existingPods *li
 }
 
 // Replicas, ReadyReplicas and UpdatedReplicas are updated immediately after grpc returns successfully.
+// Try to find and delete outdated pods first.
 func (m *basicController) fewerPods(deployment *core.Deployment, existingPods *list.List, numPodsToDelete int) {
 	if existingPods == nil {
 		panic("pod list is nil even after checking")
@@ -183,28 +191,42 @@ func (m *basicController) fewerPods(deployment *core.Deployment, existingPods *l
 		glog.Errorf("deployment status and number of pods to remove do not match: %v vs. %v", existingPods.Len(), numPodsToDelete)
 	}
 
-	numPodsDeleted := 0
-	for i := 0; i < int(numPodsToDelete); i++ {
-		it := existingPods.Back()
-		p := it.Value.(*core.Pod)
-		if err := m.podController.DeletePodByName(p.Name); err != nil {
+	// Try to delete outdated pods first.
+	numOutdatedPodsDeleted := 0
+	outdatedPods := findOutdatedPods(deployment, existingPods)
+	for idx, p := range outdatedPods {
+		if idx >= numPodsToDelete {
+			break
+		}
+		if err := m.deleteDeploymentPod(deployment, p); err != nil {
 			glog.Errorf("DEPLOYMENT [%v]: failed to delete pod: %v", deployment.Name, err.Error())
 			continue
 		}
-
-		// DeletePodByName will alter deployment's pod list, so no need to modify it here.
-		numPodsDeleted++
-		m.expectDeletedPod[p.Name] = struct{}{}
-		updateDeploymentStatusOnPodRemoval(deployment, p)
-		glog.Infof("DEPLOYMENT [%v]: deleted pod [%v]", deployment.Name, p.Name)
+		numOutdatedPodsDeleted++
 	}
+
+	numPodsDeleted := 0
+	for i := 0; i < api.Max(0, int(numPodsToDelete)-len(outdatedPods)); i++ {
+		it := existingPods.Back()
+		p := it.Value.(*core.Pod)
+		if err := m.deleteDeploymentPod(deployment, p); err != nil {
+			glog.Errorf("DEPLOYMENT [%v]: failed to delete pod: %v", deployment.Name, err.Error())
+			continue
+		}
+		numPodsDeleted++
+	}
+
 	if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
 		glog.Errorf("failed to update deployment's metadata: %v", err)
 	}
 	if err := etcd.Put(fmt.Sprintf("/Deployments/Pods/%s", deployment.Name), core.GetPodNames(existingPods)); err != nil {
 		glog.Errorf("failed to update deployment's corresponding pods: %v", err)
 	}
-	glog.Infof("DEPLOYMENT [%v]: expected to delete %v pods, actually deleted %v", deployment.Name, numPodsToDelete, numPodsDeleted)
+	glog.Infof("DEPLOYMENT [%v]: expected to delete %v pods, actually deleted %v updated, %v outdated",
+		deployment.Name,
+		numPodsToDelete,
+		numPodsDeleted,
+		numOutdatedPodsDeleted)
 }
 
 func (m *basicController) DeleteDeploymentByName(name string) error {
@@ -299,14 +321,12 @@ func (m *basicController) handlePodReady(pod *core.Pod) error {
 	if deployment := m.componentManager.GetDeploymentByPodName(pod.Name); deployment != nil {
 		deployment.Status.ReadyReplicas++
 		// If a pod becomes ready but is not updated, it could only be that the deployment template has been chaged
-		// during pod creation. And we currently have no support for this scenario.
+		// during pod creation.
 		if isPodUpdated(deployment, pod) {
 			deployment.Status.UpdatedReplicas++
 			if err := etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", deployment.Name), deployment); err != nil {
 				return err
 			}
-		} else {
-			return fmt.Errorf("pod ready but is outdated")
 		}
 	}
 
@@ -319,17 +339,46 @@ func (m *basicController) monitorDeployment() {
 
 	deployments := m.componentManager.ListDeployments()
 	for _, deployment := range deployments {
-		numPodDiff := int(deployment.Spec.Replicas) - int(deployment.Status.Replicas)
 		pods := m.componentManager.ListPodsByDeploymentName(deployment.Name)
 		if pods == nil {
 			glog.Errorf("DEPLOYMENT [%v]: nil pod list", deployment.Name)
+			continue
 		}
-		if numPodDiff > 0 {
-			m.morePods(deployment, pods, numPodDiff)
-		} else if numPodDiff < 0 {
-			m.fewerPods(deployment, pods, -numPodDiff)
+		// Only consider maxSurge and maxUnavailable when the deployment is under rolling update.
+		if deployment.Status.UpdatedReplicas < deployment.Status.ReadyReplicas {
+			// Pods might be created and deleted at the same time, so cannot reuse normal update logic.
+			// Delete outdated pods.
+			numPodDiff := computeRollingUpdatePodDeleteion(deployment, pods)
+			if numPodDiff > 0 {
+				m.fewerPods(deployment, pods, numPodDiff)
+			}
+
+			numPodDiff = computeRollingUpdatePodCreation(deployment, pods)
+			if numPodDiff > 0 {
+				m.morePods(deployment, pods, numPodDiff)
+			}
+		} else {
+			numPodDiff := int(deployment.Spec.Replicas) - int(deployment.Status.Replicas)
+			if numPodDiff > 0 {
+				m.morePods(deployment, pods, numPodDiff)
+			} else if numPodDiff < 0 {
+				m.fewerPods(deployment, pods, -numPodDiff)
+			}
 		}
 	}
+}
+
+func (m *basicController) deleteDeploymentPod(deployment *core.Deployment, pod *core.Pod) error {
+	if err := m.podController.DeletePodByName(pod.Name); err != nil {
+		return err
+	}
+
+	// DeletePodByName will alter deployment's pod list, so no need to modify it here.
+	m.expectDeletedPod[pod.Name] = struct{}{}
+	updateDeploymentStatusOnPodRemoval(deployment, pod)
+	glog.Infof("DEPLOYMENT [%v]: deleted pod [%v]", deployment.Name, pod.Name)
+
+	return nil
 }
 
 func initDeployment(deployment *core.Deployment) {
@@ -345,9 +394,26 @@ func getPodName(d *core.Deployment, specHash string) string {
 	return d.Name + "-" + specHash[0:10] + "-" + uuid.NewString()[0:5]
 }
 
+// computeSpecHash, isDeploymentUpdated, updateDeploymentTemplate, isPodUpdated must be consistent.
+func computeSpecHash(deployment *core.Deployment) string {
+	type relevantSpec struct {
+		labels  map[string]string
+		podSpec core.PodSpec
+	}
+	return api.Hash(&relevantSpec{
+		labels:  deployment.Spec.Template.ObjectMeta.Labels,
+		podSpec: deployment.Spec.Template.Spec,
+	})
+}
+
 func isDeploymentUpdated(d1 *core.Deployment, d2 *core.Deployment) bool {
 	return api.Hash(d1.Spec.Template.Labels) == api.Hash(d2.Spec.Template.Labels) &&
 		api.Hash(d1.Spec.Template.Spec) == api.Hash(d2.Spec.Template.Spec)
+}
+
+func updateDeploymentTemplate(existingDeployment *core.Deployment, newDeployment *core.Deployment) {
+	existingDeployment.Spec.Template.ObjectMeta.Labels = newDeployment.Spec.Template.Labels
+	existingDeployment.Spec.Template.Spec = newDeployment.Spec.Template.Spec
 }
 
 func isPodUpdated(deployment *core.Deployment, pod *core.Pod) bool {
@@ -366,6 +432,10 @@ func updateDeploymentStatusOnPodRemoval(deployment *core.Deployment, pod *core.P
 	}
 }
 
+func setDeploymentInEtcd(name string, deployment *core.Deployment) error {
+	return etcd.Put(fmt.Sprintf("/Deployments/Meta/%s", name), deployment)
+}
+
 func DeleteDeploymentInEtcd(deploymentName string) error {
 	if err := etcd.Delete(fmt.Sprintf("/Deployments/Meta/%s", deploymentName)); err != nil {
 		return err
@@ -374,4 +444,44 @@ func DeleteDeploymentInEtcd(deploymentName string) error {
 		return err
 	}
 	return nil
+}
+
+func computeRollingUpdatePodDeleteion(deployment *core.Deployment, pods *list.List) int {
+	var readyReplicas int64 = int64(deployment.Status.ReadyReplicas)
+	var outdatedReplicas int64 = int64(len(findOutdatedPods(deployment, pods)))
+	var replicas int64 = int64(deployment.Spec.Replicas)
+	var maxUnavailable int64 = int64(deployment.Spec.RollingUpdate.MaxUnavailable)
+	var minReadyReplicas int64 = api.Max64(0, replicas-maxUnavailable)
+	return int(api.Min64(outdatedReplicas, api.Max64(0, readyReplicas-minReadyReplicas)))
+}
+
+func computeRollingUpdatePodCreation(deployment *core.Deployment, pods *list.List) int {
+	var specReplicas int64 = int64(deployment.Spec.Replicas)
+	var statusReplicas int64 = int64(deployment.Status.Replicas)
+	var maxReplicas int64 = specReplicas + int64(deployment.Spec.RollingUpdate.MaxSurge)
+	var allUpdatedReplicas int64 = int64(len(findUpdatedPods(deployment, pods)))
+	var idealReplicasToCreate int64 = api.Max64(0, specReplicas-allUpdatedReplicas)
+	return int(api.Min64(maxReplicas-statusReplicas, idealReplicasToCreate))
+}
+
+func findOutdatedPods(deployment *core.Deployment, pods *list.List) []*core.Pod {
+	outdatedPods := make([]*core.Pod, 0)
+	for i := pods.Front(); i != nil; i = i.Next() {
+		pod := i.Value.(*core.Pod)
+		if !isPodUpdated(deployment, pod) {
+			outdatedPods = append(outdatedPods, pod)
+		}
+	}
+	return outdatedPods
+}
+
+func findUpdatedPods(deployment *core.Deployment, pods *list.List) []*core.Pod {
+	outdatedPods := make([]*core.Pod, 0)
+	for i := pods.Front(); i != nil; i = i.Next() {
+		pod := i.Value.(*core.Pod)
+		if isPodUpdated(deployment, pod) {
+			outdatedPods = append(outdatedPods, pod)
+		}
+	}
+	return outdatedPods
 }

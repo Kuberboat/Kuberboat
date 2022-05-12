@@ -176,9 +176,21 @@ type Service struct {
 type DeploymentSpec struct {
 	// Replicas is the desired number of pods.
 	Replicas uint32
+	// RollingUpdate specifies how the deployment should be rolling updated.
+	RollingUpdate RollingUpdateSepc `yaml:"rollingUpdate"`
 	// Template is the object that describes the pod that will be created if
 	// insufficient replicas are detected.
 	Template PodTemplateSpec
+}
+
+// RollingUpdateSpec specifies how a deployment should be updated when it's template or label changes.
+type RollingUpdateSepc struct {
+	// MaxSurge is the maximum number of pods by which a deployment can exceed its desired number of pods (Spec.Replicas)
+	// during rolling update.
+	MaxSurge uint32 `yaml:"maxSurge"`
+	// MaxUnavailable is the maximum number of pods below the desired number of pods that a deployment can have
+	// during rolling update.
+	MaxUnavailable uint32 `yaml:"maxUnavailable"`
 }
 
 // PodTemplateSpec describes the data a pod should have when created from a template.
