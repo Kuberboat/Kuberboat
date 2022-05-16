@@ -5,13 +5,17 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"regexp"
 	"runtime"
+	"strconv"
 	"sync"
+	"time"
 
 	"github.com/golang/glog"
 
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/filters"
 	dockerclient "github.com/docker/docker/client"
 	dockernat "github.com/docker/go-connections/nat"
 	etcd "go.etcd.io/etcd/client/v3"
@@ -29,6 +33,7 @@ const (
 	dnsIPKey               = "/ip/coredns"
 	etcdPort               = 2379
 	etcdDialTimeout        = 2000000000
+	monitorInterval        = 3
 )
 
 // Kubelet defines public methods of a PodManager.
@@ -47,6 +52,9 @@ type Kubelet interface {
 	DeletePodByName(ctx context.Context, name string) error
 	// StartCAdvisor starts cadvisor container in Kubelet, used for monitoring the pods.
 	StartCAdvisor() error
+	// monitorPods checks the status of each pod
+	// the rule is that if all the containers except pause is down then the Pod is down
+	monitorPods()
 }
 
 // Kubelet is the core data structure of the component. It manages pods, containers, monitors.
@@ -72,11 +80,17 @@ func NewKubelet() Kubelet {
 	if err != nil {
 		glog.Fatal(err)
 	}
-	return &dockerKubelet{
+	kubelet := &dockerKubelet{
 		dockerClient:      cli,
 		podMetaManager:    kubeletpod.NewMetaManager(),
 		podRuntimeManager: kubeletpod.NewRuntimeManager(),
 	}
+	go func() {
+		for range time.Tick(time.Second * monitorInterval) {
+			kubelet.monitorPods()
+		}
+	}()
+	return kubelet
 }
 
 func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) error {
@@ -428,4 +442,59 @@ func (kl *dockerKubelet) StartCAdvisor() error {
 
 	glog.Infoln("successfully starts cadvisor container")
 	return nil
+}
+
+func (kl *dockerKubelet) monitorPods() {
+	pods := kl.GetPods()
+	cli := kl.dockerClient
+	exitCodeReg, _ := regexp.Compile(`\(\d+\)`)
+	for _, pod := range pods {
+		containerIds, ok := kl.podRuntimeManager.ContainersByPod(pod)
+		if ok {
+			isFinished := true
+			isFailed := false
+			for _, containerId := range containerIds {
+				containers, err := cli.ContainerList(context.Background(), dockertypes.ContainerListOptions{
+					All: true,
+					Filters: filters.NewArgs(
+						filters.Arg("id", containerId),
+					),
+				})
+				if err != nil {
+					glog.Errorf("fail to query container %v's status: %v", containerId, err)
+				}
+				container := containers[0]
+				switch container.State {
+				case "exited":
+					m := exitCodeReg.FindString(container.Status)
+					exitCode, err := strconv.Atoi(m[1 : len(m)-1])
+					if err != nil {
+						glog.Errorf("fail to parse container %v's exit code: %v", containerId, err)
+					}
+					if exitCode != 0 {
+						isFailed = true
+					}
+				case "dead":
+					isFailed = true
+				default:
+					isFinished = false
+				}
+				if !isFinished {
+					break
+				}
+			}
+			if isFinished {
+				if isFailed {
+					pod.Status.Phase = core.PodFailed
+					glog.Infof("pod %v failed", pod.Name)
+				} else {
+					pod.Status.Phase = core.PodSucceeded
+					glog.Infof("pod %v succeed", pod.Name)
+				}
+				kl.apiClient.UpdatePodStatus(pod)
+			}
+		} else {
+			glog.Errorf("Pod %v has no containers", pod.Name)
+		}
+	}
 }
