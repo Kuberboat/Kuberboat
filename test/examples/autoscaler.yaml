@@ -1,0 +1,14 @@
+kind: HorizontalPodAutoscaler
+metadata:
+  name: autoscaler-simple
+spec:
+  scaleTargetRef:
+    kind: Deployment
+    name: deployment-ubuntu
+  minReplicas: 1
+  maxReplicas: 3
+  metrics:
+  - resource: cpu
+    targetUtilization: 1
+  - resource: memory
+    targetUtilization: 50000000

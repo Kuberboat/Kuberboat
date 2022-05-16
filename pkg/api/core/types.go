@@ -66,6 +66,8 @@ const (
 	ServiceType = "Service"
 	// DnsType means the resource is a dns config.
 	DNSType = "DNS"
+	// AutoscalerType means the resource is an autoscaler.
+	AutoscalerType = "HorizontalPodAutoscaler"
 )
 
 // PodPhase is a label for the condition of a pod at the current time.
@@ -357,4 +359,45 @@ type DNS struct {
 	Spec DNSSpec
 	// Most recent observed state of a DNS configuration.
 	Status DNSStatus
+}
+
+// ScaleTarget describes the target of an autoscaler.
+type ScaleTarget struct {
+	// Target is the target of autoscaler. Only deployment is supported.
+	Kind
+	// Name is the name of target.
+	Name string
+}
+
+// Metric contains the resource that an autoscaler needs to monitor on and its maximal
+// utilization per pod.
+type Metric struct {
+	// Resource is the type of resource that an autoscaler watches on.
+	Resource ResourceName
+	// TargetUtilization is the resource's maximal utilization per pod.
+	TargetUtilization uint64 `yaml:"targetUtilization"`
+}
+
+// AutoscalerSpec describes the attributes of an autoscaler configuration.
+type AutoscalerSpec struct {
+	// ScaleTargetRef describes the target of an autoscaler.
+	ScaleTargetRef ScaleTarget `yaml:"scaleTargetRef"`
+	// MinReplicas is the minimal replica number of the pods in target object.
+	MinReplicas uint32 `yaml:"minReplicas"`
+	// MaxReplicas is the maximal replica number of the pods in target object.
+	MaxReplicas uint32 `yaml:"maxReplicas"`
+	// Metrics is the metrics that autoscaler needs to monitor on. Only CPU and memory
+	// are supported.
+	Metrics []Metric
+}
+
+// HorizontalPodAutoscaler monitors an object and do pod scaling out or scaling in when the
+// resource utilization satisfies some condition.
+type HorizontalPodAutoscaler struct {
+	// The type of an Autoscaler is Autoscaler.
+	Kind
+	// Standard object's meta. Only name is used.
+	ObjectMeta `yaml:"metadata"`
+	// AutoscalerSpec is the desired autoscaler configuration.
+	Spec AutoscalerSpec
 }

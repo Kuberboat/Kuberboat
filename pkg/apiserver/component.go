@@ -81,6 +81,18 @@ type ComponentManager interface {
 	GetDNSByName(name string) *core.DNS
 	// ListDNS lists all the DNS configurations present.
 	ListDNS() []*core.DNS
+
+	// SetAutoscaler sets an autoscaler into ComponentManager. This function will not check the existence of the
+	// autoscaler. To check for existence, you should call `AutoscalerExistsByName`.
+	SetAutoscaler(autoscaler *core.HorizontalPodAutoscaler)
+	// DeleteAutoscalerByName deletes an autoscaler by name from ComponentManager.
+	DeleteAutoscalerByName(autoscalerName string)
+	// AutoscalerExistsByName checks the existence of an autoscaler.
+	AutoscalerExistsByName(autoscalerName string) bool
+	// ListAutoscalers lists all the autoscalers present.
+	ListAutoscalers() []*core.HorizontalPodAutoscaler
+	// DeploymentAutoscaled checks whether a deployment is monitored by an autoscaler.
+	DeploymentAutoscaled(deploymentName string) bool
 }
 
 type componentManagerInner struct {
@@ -93,6 +105,8 @@ type componentManagerInner struct {
 	deployments map[string]*core.Deployment
 	// Stores the mapping from DNS name to DNS.
 	dns map[string]*core.DNS
+	// Stores the mapping from autoscaler name to autoscaler.
+	autoscalers map[string]*core.HorizontalPodAutoscaler
 	// Stores the mapping from the name of a deployment to the pods it creates.
 	deploymentToPods map[string]*list.List
 	// Stores the mapping from the name of a service to the pods it selects by label.
@@ -106,6 +120,7 @@ func NewComponentManager() ComponentManager {
 		services:         map[string]*core.Service{},
 		deployments:      map[string]*core.Deployment{},
 		dns:              map[string]*core.DNS{},
+		autoscalers:      map[string]*core.HorizontalPodAutoscaler{},
 		deploymentToPods: map[string]*list.List{},
 		servicesToPods:   map[string]*list.List{},
 	}
@@ -202,6 +217,14 @@ func (cm *componentManagerInner) DeleteDeploymentByName(deploymentName string) {
 	}
 	delete(cm.deploymentToPods, deploymentName)
 	delete(cm.deployments, deploymentName)
+
+	// Delete corresponding autoscaler.
+	for autoscalerName, autoscaler := range cm.autoscalers {
+		if autoscaler.Spec.ScaleTargetRef.Kind == core.DeploymentType &&
+			autoscaler.Spec.ScaleTargetRef.Name == deploymentName {
+			delete(cm.autoscalers, autoscalerName)
+		}
+	}
 }
 
 func (cm *componentManagerInner) GetDeploymentByName(name string) *core.Deployment {
@@ -335,4 +358,45 @@ func (cm *componentManagerInner) ListDNS() []*core.DNS {
 		dnss = append(dnss, dns)
 	}
 	return dnss
+}
+
+func (cm *componentManagerInner) SetAutoscaler(autoscaler *core.HorizontalPodAutoscaler) {
+	cm.mtx.Lock()
+	defer cm.mtx.Unlock()
+	cm.autoscalers[autoscaler.Name] = autoscaler
+}
+
+func (cm *componentManagerInner) DeleteAutoscalerByName(autoscalerName string) {
+	cm.mtx.Lock()
+	defer cm.mtx.Unlock()
+	delete(cm.autoscalers, autoscalerName)
+}
+
+func (cm *componentManagerInner) AutoscalerExistsByName(autoscalerName string) bool {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	_, ok := cm.autoscalers[autoscalerName]
+	return ok
+}
+
+func (cm *componentManagerInner) ListAutoscalers() []*core.HorizontalPodAutoscaler {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	autoscalers := make([]*core.HorizontalPodAutoscaler, 0, len(cm.autoscalers))
+	for _, autoscaler := range cm.autoscalers {
+		autoscalers = append(autoscalers, autoscaler)
+	}
+	return autoscalers
+}
+
+func (cm *componentManagerInner) DeploymentAutoscaled(deploymentName string) bool {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	for _, autoscaler := range cm.autoscalers {
+		if autoscaler.Spec.ScaleTargetRef.Kind == core.DeploymentType &&
+			autoscaler.Spec.ScaleTargetRef.Name == deploymentName {
+			return true
+		}
+	}
+	return false
 }

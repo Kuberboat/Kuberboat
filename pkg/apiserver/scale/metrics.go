@@ -1,4 +1,4 @@
-package metrics
+package scale
 
 import (
 	"context"
@@ -19,46 +19,35 @@ import (
 
 const (
 	PrometheusAddress    string        = "http://localhost:9090"
-	QueryTimeout         time.Duration = 8 * time.Second
-	MonitorInterval      time.Duration = 10 * time.Second
-	UsageComputeDuration string        = "20s"
+	QueryTimeout         time.Duration = 5 * time.Second
+	UsageComputeDuration string        = "15s"
 )
 
 // MetricsManager monitors the CPU and memory usage of all the ready pods at set intervals.
 type MetricsManager interface {
-	// StartMonitor monitors all the ready pods at set intervals.
-	StartMonitor()
+	// PodCPUUsage queries the average CPU usage of a given pod in the past certain seconds.
+	PodCPUUsage(pod *core.Pod) (float64, error)
+	// PodMemoryUsage queries the average memory usage of a given pod in the past certain seconds.
+	PodMemoryUsage(pod *core.Pod) (uint64, error)
 }
 
 type metricsManagerInner struct {
-	prometheusAPI    v1.API
-	componentManager apiserver.ComponentManager
+	prometheusAPI v1.API
 }
 
-func NewMetricsManager(componentManager apiserver.ComponentManager) (MetricsManager, error) {
+func NewMetricsManager(componentManager apiserver.ComponentManager) MetricsManager {
 	client, err := api.NewClient(api.Config{
 		Address: PrometheusAddress,
 	})
 	if err != nil {
-		return nil, err
+		glog.Fatal(err)
 	}
 	return &metricsManagerInner{
-		prometheusAPI:    v1.NewAPI(client),
-		componentManager: componentManager,
-	}, nil
-}
-
-func (mm *metricsManagerInner) StartMonitor() {
-	for range time.Tick(MonitorInterval) {
-		for _, pod := range mm.componentManager.ListPodsByPhase(core.PodReady) {
-			go mm.podCPUUsage(pod)
-			go mm.podMemoryUsage(pod)
-		}
+		prometheusAPI: v1.NewAPI(client),
 	}
 }
 
-// podCPUUsage queries the average CPU usage of a given pod in certain seconds in the past.
-func (mm *metricsManagerInner) podCPUUsage(pod *core.Pod) (float64, error) {
+func (mm *metricsManagerInner) PodCPUUsage(pod *core.Pod) (float64, error) {
 	var queryBuilder strings.Builder
 
 	// Pause container
@@ -89,17 +78,14 @@ func (mm *metricsManagerInner) podCPUUsage(pod *core.Pod) (float64, error) {
 		glog.Warningf("warnings from prometheus: %v\n", warnings)
 	}
 	if result.(model.Vector).Len() == 0 {
-		returnErr := fmt.Errorf("fail to get cpu usage for pod %s: no data from prometheus", pod.Name)
-		glog.Errorln(returnErr)
-		return 0.0, returnErr
+		return 0.0, fmt.Errorf("fail to get cpu usage for pod %s: no data from prometheus", pod.Name)
 	}
 
-	// glog.Infof("pod %s cpu usage: %f\n", pod.Name, float64(result.(model.Vector)[0].Value))
+	fmt.Printf("pod %s cpu usage: %f\n", pod.Name, float64(result.(model.Vector)[0].Value))
 	return float64(result.(model.Vector)[0].Value), nil
 }
 
-// podMemoryUsage queries the average memory usage of a given pod in certain seconds in the past.
-func (mm *metricsManagerInner) podMemoryUsage(pod *core.Pod) (uint64, error) {
+func (mm *metricsManagerInner) PodMemoryUsage(pod *core.Pod) (uint64, error) {
 	var queryBuilder strings.Builder
 
 	// Pause container
@@ -130,12 +116,10 @@ func (mm *metricsManagerInner) podMemoryUsage(pod *core.Pod) (uint64, error) {
 		glog.Warningf("warnings from prometheus: %v\n", warnings)
 	}
 	if result.(model.Vector).Len() == 0 {
-		returnErr := fmt.Errorf("fail to get memory usage for pod %s", pod.Name)
-		glog.Errorln(returnErr)
-		return 0, returnErr
+		return 0, fmt.Errorf("fail to get memory usage for pod %s", pod.Name)
 	}
 
-	// glog.Infof("pod %s memory usage: %d bytes\n", pod.Name, uint64(result.(model.Vector)[0].Value))
+	fmt.Printf("pod %s memory usage: %d bytes\n", pod.Name, uint64(result.(model.Vector)[0].Value))
 	return uint64(result.(model.Vector)[0].Value), nil
 }
 

@@ -13,7 +13,7 @@ import (
 	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
-	"p9t.io/kuberboat/pkg/apiserver/metrics"
+	"p9t.io/kuberboat/pkg/apiserver/scale"
 	"p9t.io/kuberboat/pkg/kubelet"
 )
 
@@ -28,6 +28,11 @@ type basicController struct {
 }
 
 func NewNodeController(nodeManager NodeManager) Controller {
+	// Empty prometheus target file.
+	err := scale.GeneratePrometheusTargets([]*core.Node{})
+	if err != nil {
+		glog.Fatal(err)
+	}
 	return &basicController{
 		nodeManager: nodeManager,
 	}
@@ -73,7 +78,7 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 	node.Status.Phase = core.NodeRunning
 	node.Status.Condition = core.NodeReady
 
-	err = metrics.GeneratePrometheusTargets(bc.nodeManager.RegisteredNodes())
+	err = scale.GeneratePrometheusTargets(bc.nodeManager.RegisteredNodes())
 	if err != nil {
 		bc.nodeManager.UnregisterNode(node.Name)
 		return err

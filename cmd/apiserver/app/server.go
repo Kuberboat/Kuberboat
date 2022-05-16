@@ -13,10 +13,10 @@ import (
 	"p9t.io/kuberboat/pkg/apiserver/deployment"
 	"p9t.io/kuberboat/pkg/apiserver/dns"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
-	"p9t.io/kuberboat/pkg/apiserver/metrics"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 	"p9t.io/kuberboat/pkg/apiserver/pod"
 	"p9t.io/kuberboat/pkg/apiserver/recover"
+	"p9t.io/kuberboat/pkg/apiserver/scale"
 	"p9t.io/kuberboat/pkg/apiserver/schedule"
 	"p9t.io/kuberboat/pkg/apiserver/service"
 	pb "p9t.io/kuberboat/pkg/proto"
@@ -26,13 +26,14 @@ import (
 var nodeManager node.NodeManager
 var componentManager apiserver.ComponentManager
 var legacyManager apiserver.LegacyManager
+var metricsManager scale.MetricsManager
 var podScheduler schedule.PodScheduler
 var podController pod.Controller
 var serviceController service.Controller
 var deploymentController deployment.Contoller
 var nodeController node.Controller
-var metricsManager metrics.MetricsManager
 var dnsController dns.Controller
+var autoscalerController scale.Controller
 
 type server struct {
 	pb.UnimplementedApiServerKubeletServiceServer
@@ -312,6 +313,18 @@ func (*server) DescribeDNSs(ctx context.Context, req *pb.DescribeDNSsRequest) (*
 	}, nil
 }
 
+func (*server) CreateAutoscaler(ctx context.Context, req *pb.CreateAutoscalerRequest) (*pb.DefaultResponse, error) {
+	var autoscaler core.HorizontalPodAutoscaler
+
+	if err := json.Unmarshal(req.Autoscaler, &autoscaler); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	if err := autoscalerController.CreateAutoscaler(&autoscaler); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
 func StartServer(etcdServers string) {
 	if err := etcd.InitializeClient(etcdServers); err != nil {
 		glog.Fatal(err)
@@ -319,17 +332,21 @@ func StartServer(etcdServers string) {
 	nodeManager = node.NewNodeManager()
 	componentManager = apiserver.NewComponentManager()
 	legacyManager = apiserver.NewLegacyManager(componentManager)
+	metricsManager = scale.NewMetricsManager(componentManager)
 	podScheduler = schedule.NewPodScheduler(nodeManager)
 	podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
-	serviceController, _ = service.NewServiceController(componentManager, nodeManager)
+	serviceController = service.NewServiceController(componentManager, nodeManager)
 	deploymentController = deployment.NewDeploymentController(componentManager, podController)
 	nodeController = node.NewNodeController(nodeManager)
-	metricsManager, _ = metrics.NewMetricsManager(componentManager)
 	dnsController = dns.NewDNSController(componentManager)
+	autoscalerController = scale.NewAutoscalerController(componentManager, metricsManager)
 
 	if err := recover.Recover(&nodeManager, &componentManager); err != nil {
 		glog.Fatal(err)
 	}
+
+	go autoscalerController.StartMonitor()
+
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
 	if err != nil {
 		glog.Fatal("Api server failed to connect!")
@@ -343,11 +360,6 @@ func StartServer(etcdServers string) {
 	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})
 
 	glog.Infof("Api server listening at %v", lis.Addr())
-
-	// Empty prometheus target file
-	metrics.GeneratePrometheusTargets([]*core.Node{})
-
-	go metricsManager.StartMonitor()
 
 	if err := apiServer.Serve(lis); err != nil {
 		glog.Fatal(err)

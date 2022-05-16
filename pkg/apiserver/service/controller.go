@@ -45,10 +45,10 @@ type basicController struct {
 func NewServiceController(
 	componentManager apiserver.ComponentManager,
 	nodeManager node.NodeManager,
-) (Controller, error) {
+) Controller {
 	clusterIPAssigner, err := NewClusterIPAssigner()
 	if err != nil {
-		return nil, err
+		glog.Fatal(err)
 	}
 	controller := &basicController{
 		componentManager:  componentManager,
@@ -57,7 +57,7 @@ func NewServiceController(
 	}
 	apiserver.SubscribeToEvent(controller, apiserver.PodReady)
 	apiserver.SubscribeToEvent(controller, apiserver.PodDeletion)
-	return controller, nil
+	return controller
 }
 
 func (c *basicController) CreateService(service *core.Service) error {

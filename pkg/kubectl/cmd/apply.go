@@ -52,6 +52,8 @@ Examples:
 				applyService(data)
 			case string(core.DNSType):
 				applyDNS(data)
+			case string(core.AutoscalerType):
+				applyAutoscaler(data)
 			default:
 				log.Fatalf("%v is not supported", configKind.Kind)
 			}
@@ -157,4 +159,28 @@ func applyDNS(data []byte) {
 		log.Fatal(err)
 	}
 	fmt.Printf("Response status: %v ;DNS created\n", response.Status)
+}
+
+func applyAutoscaler(data []byte) {
+	var autoscaler core.HorizontalPodAutoscaler
+	if err := yaml.Unmarshal(data, &autoscaler); err != nil {
+		log.Fatalf("cannot unmarshal data: %v", err)
+	}
+	if autoscaler.Spec.ScaleTargetRef.Kind != core.DeploymentType {
+		log.Fatalf("target object must be deployment")
+	}
+	if autoscaler.Spec.MinReplicas > autoscaler.Spec.MaxReplicas {
+		log.Fatalf("number of min replicas must be no greater than that of max replicas")
+	}
+	for _, metric := range autoscaler.Spec.Metrics {
+		if metric.Resource != core.ResourceCPU && metric.Resource != core.ResourceMemory {
+			log.Fatalf("unsupported metric: %s", metric.Resource)
+		}
+	}
+	client := client.NewCtlClient()
+	response, err := client.CreateAutoscaler(&autoscaler)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response status: %v ;Autoscaler created\n", response.Status)
 }

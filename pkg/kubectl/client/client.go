@@ -162,3 +162,15 @@ func (c *ctlClient) DescribeDNSs(all bool, names []string) (*pb.DescribeDNSsResp
 		DnsNames: names,
 	})
 }
+
+func (c *ctlClient) CreateAutoscaler(autoscaler *core.HorizontalPodAutoscaler) (*pb.DefaultResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	data, err := json.Marshal(autoscaler)
+	if err != nil {
+		return &pb.DefaultResponse{Status: 1}, err
+	}
+	return c.client.CreateAutoscaler(ctx, &pb.CreateAutoscalerRequest{
+		Autoscaler: data,
+	})
+}

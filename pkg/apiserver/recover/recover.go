@@ -11,8 +11,8 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
-	"p9t.io/kuberboat/pkg/apiserver/metrics"
 	"p9t.io/kuberboat/pkg/apiserver/node"
+	metrics "p9t.io/kuberboat/pkg/apiserver/scale"
 )
 
 func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {

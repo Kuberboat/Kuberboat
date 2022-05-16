@@ -92,6 +92,10 @@ message DescribeDNSsResponse {
   bytes not_found_dnss = 3;
 }
 
+message CreateAutoscalerRequest {
+  bytes autoscaler = 1;
+}
+
 // Service on API Server for Kubectl.
 service ApiServerCtlService {
   rpc GetPods(GetPodsRequest) returns(GetPodsResponse);
@@ -107,4 +111,5 @@ service ApiServerCtlService {
   rpc DescribeDeployments(DescribeDeploymentsRequest) returns (DescribeDeploymentsResponse);
   rpc CreateDNS(CreateDNSRequest) returns(default.DefaultResponse);
   rpc DescribeDNSs(DescribeDNSsRequest) returns(DescribeDNSsResponse);
+  rpc CreateAutoscaler(CreateAutoscalerRequest) returns(default.DefaultResponse);
 }

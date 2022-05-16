@@ -109,6 +109,14 @@ func (m *basicController) DescribeDeployments(all bool, names []string) ([]*core
 }
 
 func (m *basicController) ApplyDeployment(deployment *core.Deployment) error {
+	// Updating a deployment monitored by autoscaler is not allowed.
+	if m.componentManager.DeploymentAutoscaled(deployment.Name) {
+		return fmt.Errorf(
+			"deployment %s is monitored by autoscaler and cannot be updated",
+			deployment.Name,
+		)
+	}
+
 	m.mtx.Lock()
 	defer m.mtx.Unlock()
 
@@ -348,7 +356,7 @@ func (m *basicController) monitorDeployment() {
 		if deployment.Status.UpdatedReplicas < deployment.Status.ReadyReplicas {
 			// Pods might be created and deleted at the same time, so cannot reuse normal update logic.
 			// Delete outdated pods.
-			numPodDiff := computeRollingUpdatePodDeleteion(deployment, pods)
+			numPodDiff := computeRollingUpdatePodDeletion(deployment, pods)
 			if numPodDiff > 0 {
 				m.fewerPods(deployment, pods, numPodDiff)
 			}
@@ -446,7 +454,7 @@ func DeleteDeploymentInEtcd(deploymentName string) error {
 	return nil
 }
 
-func computeRollingUpdatePodDeleteion(deployment *core.Deployment, pods *list.List) int {
+func computeRollingUpdatePodDeletion(deployment *core.Deployment, pods *list.List) int {
 	var readyReplicas int64 = int64(deployment.Status.ReadyReplicas)
 	var outdatedReplicas int64 = int64(len(findOutdatedPods(deployment, pods)))
 	var replicas int64 = int64(deployment.Spec.Replicas)

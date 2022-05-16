@@ -37,4 +37,9 @@ if [ $? -ne 0 ]; then
 	exit_code=1
 fi
 
+bash $parent_path/test_autoscaler.sh 2>/dev/null
+if [ $? -ne 0 ]; then
+	exit_code=1
+fi
+
 exit $exit_code

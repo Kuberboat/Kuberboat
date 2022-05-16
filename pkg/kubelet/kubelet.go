@@ -16,6 +16,7 @@ import (
 	dockertypes "github.com/docker/docker/api/types"
 	dockercontainer "github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/strslice"
 	dockerclient "github.com/docker/docker/client"
 	dockernat "github.com/docker/go-connections/nat"
 	etcd "go.etcd.io/etcd/client/v3"
@@ -417,6 +418,7 @@ func (kl *dockerKubelet) StartCAdvisor() error {
 		ExposedPorts: dockernat.PortSet{
 			exposedPort: struct{}{},
 		},
+		Cmd: strslice.StrSlice{"--max_housekeeping_interval=5s"},
 	}, &dockercontainer.HostConfig{
 		Binds:      vBinds,
 		Privileged: true,

@@ -104,7 +104,7 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	if _, err := client.CreatePod(pod); err != nil {
 		return err
 	}
-	glog.Infof("created pod %v on node with IP %v", pod.Name, pod.Status.HostIP)
+	glog.Infof("POD [%v]: created pod on node with IP %v", pod.Name, pod.Status.HostIP)
 
 	return nil
 }
