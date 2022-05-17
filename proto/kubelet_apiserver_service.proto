@@ -18,6 +18,18 @@ message KubeletDeletePodRequest {
     string pod_name = 1;
 }
 
+message KubeletTransferFileRequest {
+    bytes file = 1;
+}
+
+message KubeletGetPodLogRequest {
+    string pod_name = 1;
+}
+
+message KubeletGetPodLogResponse {
+    string log = 1;
+}
+
 message KubeletCreateServiceRequest {
     string service_name = 1;
     string cluster_ip = 2;
@@ -41,6 +53,8 @@ service KubeletApiServerService {
     rpc NotifyRegistered(NotifyRegisteredRequest) returns(default.DefaultResponse);
     rpc CreatePod(KubeletCreatePodRequest) returns(default.DefaultResponse);
     rpc DeletePod(KubeletDeletePodRequest) returns(default.DefaultResponse);
+    rpc TransferFile(KubeletTransferFileRequest) returns(default.DefaultResponse);
+    rpc GetPodLog(KubeletGetPodLogRequest) returns(KubeletGetPodLogResponse);
     rpc CreateService(KubeletCreateServiceRequest) returns(default.DefaultResponse);
     rpc DeleteService(KubeletDeleteServiceRequest) returns(default.DefaultResponse);
     rpc AddPodToServices(KubeletUpdateServiceRequest) returns(default.DefaultResponse);

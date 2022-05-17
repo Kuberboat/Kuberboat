@@ -8,6 +8,7 @@ import (
 	"regexp"
 	"runtime"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -53,8 +54,10 @@ type Kubelet interface {
 	DeletePodByName(ctx context.Context, name string) error
 	// StartCAdvisor starts cadvisor container in Kubelet, used for monitoring the pods.
 	StartCAdvisor() error
-	// monitorPods checks the status of each pod
-	// the rule is that if all the containers except pause is down then the Pod is down
+	// GetPodLog gets the logs of pod's container.
+	GetPodLog(ctx context.Context, podName string) string
+	// MonitorPods checks the status of each pod.
+	// The rule is that if all the containers except pause is down then the Pod is down.
 	monitorPods()
 }
 
@@ -265,8 +268,13 @@ func (kl *dockerKubelet) runPodContainer(ctx context.Context, pod *core.Pod, c *
 
 	// Populate volume bindings.
 	vBinds := make([]string, 0, len(c.VolumeMounts))
+	_, isJob := pod.Labels["JobSpecificLabel"]
 	for _, m := range c.VolumeMounts {
-		vBinds = append(vBinds, fmt.Sprintf("%v:%v", core.GetPodSpecificName(pod, m.Name), m.MountPath))
+		if isJob {
+			vBinds = append(vBinds, fmt.Sprintf("%v:%v", m.Name, m.MountPath))
+		} else {
+			vBinds = append(vBinds, fmt.Sprintf("%v:%v", core.GetPodSpecificName(pod, m.Name), m.MountPath))
+		}
 	}
 
 	// Populate resources.
@@ -446,43 +454,79 @@ func (kl *dockerKubelet) StartCAdvisor() error {
 	return nil
 }
 
+func (kl *dockerKubelet) GetPodLog(ctx context.Context, podName string) string {
+	cli := kl.dockerClient
+	pod, ok := kl.GetPodByName(podName)
+	if !ok {
+		glog.Errorf("pod %v not found", podName)
+	}
+	containerIds, ok := kl.podRuntimeManager.ContainersByPod(pod)
+	if !ok {
+		glog.Errorf("pod %v has no containers", podName)
+	}
+	var logBuilder strings.Builder
+	for _, containerId := range containerIds {
+		logReader, err := cli.ContainerLogs(ctx, containerId, dockertypes.ContainerLogsOptions{
+			ShowStdout: true,
+			ShowStderr: true,
+		})
+		if err != nil {
+			glog.Errorf("fail to get container %v's log", containerId)
+		}
+		log, err := io.ReadAll(logReader)
+		if err != nil {
+			glog.Errorf("fail to read container %v's log", containerId)
+		}
+		logBuilder.Write(log)
+	}
+	return logBuilder.String()
+}
+
 func (kl *dockerKubelet) monitorPods() {
 	pods := kl.GetPods()
 	cli := kl.dockerClient
 	exitCodeReg, _ := regexp.Compile(`\(\d+\)`)
 	for _, pod := range pods {
+		if pod.Status.Phase == core.PodSucceeded || pod.Status.Phase == core.PodFailed {
+			continue
+		}
 		containerIds, ok := kl.podRuntimeManager.ContainersByPod(pod)
 		if ok {
 			isFinished := true
 			isFailed := false
-			for _, containerId := range containerIds {
-				containers, err := cli.ContainerList(context.Background(), dockertypes.ContainerListOptions{
-					All: true,
-					Filters: filters.NewArgs(
-						filters.Arg("id", containerId),
-					),
-				})
-				if err != nil {
-					glog.Errorf("fail to query container %v's status: %v", containerId, err)
-				}
-				container := containers[0]
-				switch container.State {
-				case "exited":
-					m := exitCodeReg.FindString(container.Status)
-					exitCode, err := strconv.Atoi(m[1 : len(m)-1])
+			// first check if all the containers are created
+			if len(containerIds) != len(pod.Spec.Containers) {
+				isFailed = true
+			} else {
+				for _, containerId := range containerIds {
+					containers, err := cli.ContainerList(context.Background(), dockertypes.ContainerListOptions{
+						All: true,
+						Filters: filters.NewArgs(
+							filters.Arg("id", containerId),
+						),
+					})
 					if err != nil {
-						glog.Errorf("fail to parse container %v's exit code: %v", containerId, err)
+						glog.Errorf("fail to query container %v's status: %v", containerId, err)
 					}
-					if exitCode != 0 {
+					container := containers[0]
+					switch container.State {
+					case "exited":
+						m := exitCodeReg.FindString(container.Status)
+						exitCode, err := strconv.Atoi(m[1 : len(m)-1])
+						if err != nil {
+							glog.Errorf("fail to parse container %v's exit code: %v", containerId, err)
+						}
+						if exitCode != 0 {
+							isFailed = true
+						}
+					case "dead":
 						isFailed = true
+					default:
+						isFinished = false
 					}
-				case "dead":
-					isFailed = true
-				default:
-					isFinished = false
-				}
-				if !isFinished {
-					break
+					if !isFinished {
+						break
+					}
 				}
 			}
 			if isFinished {
@@ -496,7 +540,7 @@ func (kl *dockerKubelet) monitorPods() {
 				kl.apiClient.UpdatePodStatus(pod)
 			}
 		} else {
-			glog.Errorf("Pod %v has no containers", pod.Name)
+			glog.Errorf("pod %v has no containers", pod.Name)
 		}
 	}
 }

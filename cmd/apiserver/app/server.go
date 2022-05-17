@@ -13,6 +13,7 @@ import (
 	"p9t.io/kuberboat/pkg/apiserver/deployment"
 	"p9t.io/kuberboat/pkg/apiserver/dns"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
+	"p9t.io/kuberboat/pkg/apiserver/job"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 	"p9t.io/kuberboat/pkg/apiserver/pod"
 	"p9t.io/kuberboat/pkg/apiserver/recover"
@@ -29,6 +30,7 @@ var legacyManager apiserver.LegacyManager
 var metricsManager scale.MetricsManager
 var podScheduler schedule.PodScheduler
 var podController pod.Controller
+var jobController job.Controller
 var serviceController service.Controller
 var deploymentController deployment.Contoller
 var nodeController node.Controller
@@ -100,6 +102,22 @@ func (s *server) DeletePod(ctx context.Context, req *pb.DeletePodRequest) (*pb.D
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
+func (s *server) CreateJob(ctx context.Context, req *pb.CreateJobRequest) (*pb.DefaultResponse, error) {
+	var job core.Job
+	if err := json.Unmarshal(req.Job, &job); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	if err := jobController.ApplyJob(&job); err != nil {
+		return &pb.DefaultResponse{Status: -1}, err
+	}
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (s *server) GetJobLog(ctx context.Context, req *pb.LogJobRequest) (*pb.LogJobResponse, error) {
+	resp, err := jobController.GetJobLog(req.JobName)
+	return &pb.LogJobResponse{Log: resp}, err
+}
+
 func (s *server) RegisterNode(ctx context.Context, req *pb.RegisterNodeRequest) (*pb.DefaultResponse, error) {
 	var node core.Node
 	if err := json.Unmarshal(req.Node, &node); err != nil {
@@ -154,7 +172,10 @@ func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusReq
 	if prevStatus.Phase != core.PodFailed && status.Phase == core.PodFailed {
 		apiserver.Dispatch(&apiserver.PodFailEvent{PodName: req.PodName})
 	}
-
+	// Try to dispatch PodSucceedEvent
+	if prevStatus.Phase != core.PodSucceeded && status.Phase == core.PodSucceeded {
+		apiserver.Dispatch(&apiserver.PodSucceedEvent{PodName: req.PodName})
+	}
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
@@ -335,6 +356,7 @@ func StartServer(etcdServers string) {
 	metricsManager = scale.NewMetricsManager(componentManager)
 	podScheduler = schedule.NewPodScheduler(nodeManager)
 	podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
+	jobController = job.NewJobController(podController, nodeManager, componentManager)
 	serviceController = service.NewServiceController(componentManager, nodeManager)
 	deploymentController = deployment.NewDeploymentController(componentManager, podController)
 	nodeController = node.NewNodeController(nodeManager)

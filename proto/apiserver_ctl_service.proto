@@ -92,6 +92,18 @@ message DescribeDNSsResponse {
   bytes not_found_dnss = 3;
 }
 
+message CreateJobRequest {
+  bytes job = 1;
+}
+
+message LogJobRequest {
+  string job_name = 1;
+}
+
+message LogJobResponse {
+  string log = 1;
+}
+
 message CreateAutoscalerRequest {
   bytes autoscaler = 1;
 }
@@ -111,5 +123,7 @@ service ApiServerCtlService {
   rpc DescribeDeployments(DescribeDeploymentsRequest) returns (DescribeDeploymentsResponse);
   rpc CreateDNS(CreateDNSRequest) returns(default.DefaultResponse);
   rpc DescribeDNSs(DescribeDNSsRequest) returns(DescribeDNSsResponse);
+  rpc CreateJob(CreateJobRequest) returns(default.DefaultResponse);
+  rpc GetJobLog(LogJobRequest) returns(LogJobResponse);
   rpc CreateAutoscaler(CreateAutoscalerRequest) returns(default.DefaultResponse);
 }

@@ -163,6 +163,26 @@ func (c *ctlClient) DescribeDNSs(all bool, names []string) (*pb.DescribeDNSsResp
 	})
 }
 
+func (c *ctlClient) CreateJob(job *core.Job) (*pb.DefaultResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	data, err := json.Marshal(job)
+	if err != nil {
+		return &pb.DefaultResponse{Status: 1}, err
+	}
+	return c.client.CreateJob(ctx, &pb.CreateJobRequest{
+		Job: data,
+	})
+}
+
+func (c *ctlClient) GetJobLog(jobName string) (*pb.LogJobResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	return c.client.GetJobLog(ctx, &pb.LogJobRequest{
+		JobName: jobName,
+	})
+}
+
 func (c *ctlClient) CreateAutoscaler(autoscaler *core.HorizontalPodAutoscaler) (*pb.DefaultResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()

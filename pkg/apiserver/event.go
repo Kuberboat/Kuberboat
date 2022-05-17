@@ -8,6 +8,7 @@ const (
 	PodDeletion EventType = iota
 	PodReady
 	PodFail
+	PodSucceed
 )
 
 // Event is an event that happens on any kind of resources, and can be handled by EventSubscriber.
@@ -45,6 +46,15 @@ type PodFailEvent struct {
 
 func (*PodFailEvent) Type() EventType {
 	return PodFail
+}
+
+// PodSucceedEvent means a pod successfully exit.
+type PodSucceedEvent struct {
+	PodName string
+}
+
+func (*PodSucceedEvent) Type() EventType {
+	return PodSucceed
 }
 
 // More events...

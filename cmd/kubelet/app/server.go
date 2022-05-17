@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net"
+	"os"
 
 	"github.com/golang/glog"
 
@@ -52,6 +53,22 @@ func (s *server) CreatePod(ctx context.Context, req *pb.KubeletCreatePodRequest)
 func (s *server) DeletePod(ctx context.Context, req *pb.KubeletDeletePodRequest) (*pb.DefaultResponse, error) {
 	go kubelet.DeletePodByName(context.Background(), req.PodName)
 	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (s *server) TransferFile(ctx context.Context, req *pb.KubeletTransferFileRequest) (*pb.DefaultResponse, error) {
+	go func() {
+		if err := os.MkdirAll("/tmp/cuda", 0777); err != nil {
+			glog.Fatalf("failed to create cuda dir: %v", err.Error())
+		}
+		if err := os.WriteFile("/tmp/cuda/cuda.cu", req.File, 0777); err != nil {
+			glog.Fatalf("failed to write cuda file: %v", err.Error())
+		}
+	}()
+	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (s *server) GetPodLog(ctx context.Context, req *pb.KubeletGetPodLogRequest) (*pb.KubeletGetPodLogResponse, error) {
+	return &pb.KubeletGetPodLogResponse{Log: kubelet.GetPodLog(ctx, req.PodName)}, nil
 }
 
 func (s *server) CreateService(ctx context.Context, req *pb.KubeletCreateServiceRequest) (*pb.DefaultResponse, error) {

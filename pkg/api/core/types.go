@@ -66,6 +66,8 @@ const (
 	ServiceType = "Service"
 	// DnsType means the resource is a dns config.
 	DNSType = "DNS"
+	// JobType means the resource is a cuda job
+	JobType = "Job"
 	// AutoscalerType means the resource is an autoscaler.
 	AutoscalerType = "HorizontalPodAutoscaler"
 )
@@ -359,6 +361,17 @@ type DNS struct {
 	Spec DNSSpec
 	// Most recent observed state of a DNS configuration.
 	Status DNSStatus
+}
+
+type Job struct {
+	// The type of Job is Job.
+	Kind
+	// Standard object's meta. Only name is used
+	ObjectMeta `yaml:"metadata"`
+	// Path is the path to the cuda file
+	Path string
+	// Data is the cuda file content
+	Data []byte
 }
 
 // ScaleTarget describes the target of an autoscaler.

@@ -1,7 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
@@ -22,9 +18,6 @@ var (
 	rootCmd = &cobra.Command{
 		Use:   "kubectl",
 		Short: "kubectl controls the Kubernetes cluster manager.",
-		// Uncomment the following line if your bare application
-		// has an action associated with it:
-		// Run: func(cmd *cobra.Command, args []string) { },
 	}
 )
 
@@ -45,10 +38,6 @@ func init() {
 
 	homePath, _ := os.UserHomeDir()
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", fmt.Sprintf("%s/.kube/kubectl_config.yaml", homePath), "config file")
-	// Cobra also supports local flags, which will only run
-	// when this action is called directly.
-	// rootCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
-	// rootCmd.PersistentFlags().
 }
 
 var config core.Config

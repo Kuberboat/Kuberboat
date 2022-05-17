@@ -1,7 +1,3 @@
-/*
-Copyright © 2022 NAME HERE <EMAIL ADDRESS>
-
-*/
 package cmd
 
 import (
@@ -52,6 +48,8 @@ Examples:
 				applyService(data)
 			case string(core.DNSType):
 				applyDNS(data)
+			case string(core.JobType):
+				applyJob(data)
 			case string(core.AutoscalerType):
 				applyAutoscaler(data)
 			default:
@@ -159,6 +157,24 @@ func applyDNS(data []byte) {
 		log.Fatal(err)
 	}
 	fmt.Printf("Response status: %v ;DNS created\n", response.Status)
+}
+
+func applyJob(data []byte) {
+	var job core.Job
+	if err := yaml.Unmarshal(data, &job); err != nil {
+		log.Fatalf("cannot unmarshal data: %v", err)
+	}
+	cudaFile, err := os.ReadFile(job.Path)
+	if err != nil {
+		log.Fatal(err)
+	}
+	job.Data = cudaFile
+	client := client.NewCtlClient()
+	response, err := client.CreateJob(&job)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("Response status: %v ;Job created\n", response.Status)
 }
 
 func applyAutoscaler(data []byte) {

@@ -3,6 +3,7 @@ package pod
 import (
 	"errors"
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/golang/glog"
@@ -90,6 +91,17 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	node, client := c.podScheduler.SchedulePod(pod)
 	if node == nil {
 		return errors.New("no available worker to schedule the pod")
+	}
+	_, isJob := pod.Labels["JobSpecificLabel"]
+	if isJob {
+		// We need to send the cuda file to the node first
+		cudaFile, err := os.ReadFile("/tmp/cuda/cuda.cu")
+		if err != nil {
+			glog.Errorf("read cuda file from host error: %v", err.Error())
+		}
+		if _, err := client.TransferFile(cudaFile); err != nil {
+			return err
+		}
 	}
 	pod.UUID = uuid.New()
 	pod.CreationTimestamp = time.Now()
