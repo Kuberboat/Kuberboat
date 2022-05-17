@@ -354,7 +354,7 @@ func StartServer(etcdServers string) {
 	componentManager = apiserver.NewComponentManager()
 	legacyManager = apiserver.NewLegacyManager(componentManager)
 	metricsManager = scale.NewMetricsManager(componentManager)
-	podScheduler = schedule.NewPodScheduler(nodeManager)
+	podScheduler = schedule.NewPodScheduler(nodeManager, componentManager)
 	podController = pod.NewPodController(componentManager, podScheduler, nodeManager, legacyManager)
 	jobController = job.NewJobController(podController, nodeManager, componentManager)
 	serviceController = service.NewServiceController(componentManager, nodeManager)

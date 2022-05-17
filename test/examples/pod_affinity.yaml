@@ -1,0 +1,22 @@
+kind: Pod
+metadata:
+  name: mypod1
+  labels:
+    app: mypod
+    env: dev
+spec:
+  containers:
+    - name: redis
+      image: redis:7.0-rc3
+      ports: 
+        - 6379
+        - 5001
+      resources:
+        cpu: 1
+        memory: 128000000
+      volumeMounts:
+        - name: redis-storage
+          mountPath: /data/redis
+  volumes:
+    - redis-storage
+  affinity: mypod0

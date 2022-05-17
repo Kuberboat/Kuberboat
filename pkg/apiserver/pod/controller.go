@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/golang/glog"
@@ -38,6 +39,7 @@ type Controller interface {
 }
 
 type basicController struct {
+	mtx sync.Mutex
 	// componentManager stores the components and the dependencies between them.
 	componentManager apiserver.ComponentManager
 	// podScheduler tells which node to schedule a pod on.
@@ -55,6 +57,7 @@ func NewPodController(
 	legacyManager apiserver.LegacyManager,
 ) Controller {
 	return &basicController{
+		mtx:              sync.Mutex{},
 		componentManager: componentManager,
 		podScheduler:     podScheduler,
 		nodeManager:      nodeManager,
@@ -85,13 +88,21 @@ func (c *basicController) GetPods(all bool, podNames []string) ([]*core.Pod, []s
 }
 
 func (c *basicController) CreatePod(pod *core.Pod) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
 	if c.componentManager.PodExistsByName(pod.Name) {
 		return fmt.Errorf("pod already exists: %v", pod.Name)
 	}
-	node, client := c.podScheduler.SchedulePod(pod)
+	node, err := c.podScheduler.SchedulePod(pod)
+	if err != nil {
+		return err
+	}
 	if node == nil {
 		return errors.New("no available worker to schedule the pod")
 	}
+
+	client := c.nodeManager.ClientByName(node.Name)
 	_, isJob := pod.Labels["JobSpecificLabel"]
 	if isJob {
 		// We need to send the cuda file to the node first
@@ -103,6 +114,7 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 			return err
 		}
 	}
+
 	pod.UUID = uuid.New()
 	pod.CreationTimestamp = time.Now()
 	pod.Status.Phase = core.PodPending
@@ -116,12 +128,20 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	if _, err := client.CreatePod(pod); err != nil {
 		return err
 	}
-	glog.Infof("POD [%v]: created pod on node with IP %v", pod.Name, pod.Status.HostIP)
+
+	glog.Infof(
+		"POD [%v]: create pod on node with IP %v",
+		pod.Name,
+		pod.Status.HostIP,
+	)
 
 	return nil
 }
 
 func (c *basicController) DeletePodByName(name string) error {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
 	if !c.componentManager.PodExistsByName(name) {
 		return fmt.Errorf("no such pod: %v", name)
 	}
@@ -145,6 +165,8 @@ func (c *basicController) DeletePodByName(name string) error {
 	c.legacyManager.SetPodLegacy(name)
 	c.componentManager.DeletePodByName(name)
 
+	glog.Infof("POD [%v]: pod deleted", pod.Name)
+
 	return nil
 }
 
@@ -158,6 +180,9 @@ func (c *basicController) DeleteAllPods() error {
 }
 
 func (c *basicController) UpdatePodStatus(podName string, podStatus *core.PodStatus) (*core.PodStatus, error) {
+	c.mtx.Lock()
+	defer c.mtx.Unlock()
+
 	if !c.componentManager.PodExistsByName(podName) {
 		return nil, fmt.Errorf("no such pod: %v", podName)
 	}

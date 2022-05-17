@@ -116,6 +116,8 @@ type PodSpec struct {
 	Containers []Container
 	// List of named volumes that can be mounted by containers belonging to the pod.
 	Volumes []string
+	// Affinity is the name of a pod with which the pod would like to be together (on the same node).
+	Affinity string
 }
 
 // PodStatus represents information about the status of a pod.

@@ -90,5 +90,11 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 		return err
 	}
 
+	glog.Infof(
+		"NODE [%s]: successfully registered with IP address %s",
+		node.Name,
+		node.Status.Address,
+	)
+
 	return nil
 }

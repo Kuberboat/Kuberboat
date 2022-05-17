@@ -2,6 +2,7 @@ package node
 
 import (
 	"fmt"
+	"sort"
 
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver/client"
@@ -15,10 +16,12 @@ type NodeWithClient struct {
 type NodeManager interface {
 	// RegisterNode adds metadata for the node and creates grpc client to Kubelet and Kubeproxy to that node.
 	RegisterNode(node *core.Node) error
-	// UnregisterNode is for rolling back registeration.
+	// UnregisterNode is for rolling back registration.
 	UnregisterNode(name string) error
 	// RegisterNodes returns all the node registered.
 	RegisteredNodes() []*core.Node
+	// NodeByIP returns node indexed by worker IP.
+	NodeByIP(ip string) *core.Node
 	// ClientByName returns the grpc client indexed by node name.
 	ClientByName(name string) *client.ApiserverClient
 	// ClientByIP returns grpc client indexed by worker IP.
@@ -64,11 +67,21 @@ func (nm *nodeManagerInner) UnregisterNode(name string) error {
 }
 
 func (nm *nodeManagerInner) RegisteredNodes() []*core.Node {
-	registeredNodes := make([]*core.Node, 0, len(nm.nodes))
+	registeredNodes := make(core.NodeTimeSlice, 0, len(nm.nodes))
 	for _, nodeWithClient := range nm.nodes {
 		registeredNodes = append(registeredNodes, nodeWithClient.node)
 	}
+	sort.Sort(registeredNodes)
 	return registeredNodes
+}
+
+func (nm *nodeManagerInner) NodeByIP(ip string) *core.Node {
+	for _, nodeWithClient := range nm.nodes {
+		if nodeWithClient.node.Status.Address == ip {
+			return nodeWithClient.node
+		}
+	}
+	return nil
 }
 
 func (nm *nodeManagerInner) ClientByName(name string) *client.ApiserverClient {
@@ -79,9 +92,9 @@ func (nm *nodeManagerInner) ClientByName(name string) *client.ApiserverClient {
 }
 
 func (nm *nodeManagerInner) ClientByIP(ip string) *client.ApiserverClient {
-	for _, node := range nm.nodes {
-		if node.node.Status.Address == ip {
-			return node.client
+	for _, nodeWithClient := range nm.nodes {
+		if nodeWithClient.node.Status.Address == ip {
+			return nodeWithClient.client
 		}
 	}
 	return nil
