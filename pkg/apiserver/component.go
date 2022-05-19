@@ -2,9 +2,9 @@ package apiserver
 
 import (
 	"container/list"
-	"reflect"
 	"sync"
 
+	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 )
 
@@ -25,7 +25,8 @@ type ComponentManager interface {
 	ListPods() []*core.Pod
 	// ListPodsByPhase lists all pods whose phases match exactly with the given phase.
 	ListPodsByPhase(phase core.PodPhase) []*core.Pod
-	// ListPodsByLabels lists all pods whose labels and phases match exactly with the given ones.
+	// ListPodsByLabels lists all pods whose labels contains the given labels and phases match
+	// exactly with the given phase.
 	ListPodsByLabelsAndPhase(labels *map[string]string, phase core.PodPhase) *list.List
 
 	// SetDeployment sets a deployment and the pods it creates into ComponentManager. This
@@ -55,15 +56,17 @@ type ComponentManager interface {
 	// DeleteServiceByName deletes a service by name from ComponentManager. This function will not check
 	// the existence of the service.
 	DeleteServiceByName(name string)
+	// AddPodToService adds a ready pod to a service.
+	AddPodToService(serviceName string, pod *core.Pod)
 	// GetServiceByName gets a service from ComponentManager by name.
 	GetServiceByName(name string) *core.Service
 	// ServiceExistsByName checks whether a service of a specific name exists.
 	ServiceExistsByName(name string) bool
 	// ListServices lists all the services present.
 	ListServices() []*core.Service
-	// ListServicesByLabels lists all the services whose labels match with the parameter. Returns the name
+	// ListServicesByLabels lists all the services whose labels is a subset of parameter. Returns the name
 	// of the services.
-	ListServicesByLabels(labels *map[string]string) []string
+	ListServicesByLabels(podLabels *map[string]string) []string
 	// ListPodsByServiceName lists all the pods given the name of a service. This function will not
 	// check the existence of the service. If the service does not exist, an empty array will be
 	// returned.
@@ -136,6 +139,14 @@ func (cm *componentManagerInner) DeletePodByName(name string) {
 	cm.mtx.Lock()
 	defer cm.mtx.Unlock()
 	delete(cm.pods, name)
+	for _, pods := range cm.servicesToPods {
+		for it := pods.Front(); it != nil; it = it.Next() {
+			if it.Value.(*core.Pod).Name == name {
+				pods.Remove(it)
+				break
+			}
+		}
+	}
 	for _, pods := range cm.deploymentToPods {
 		for it := pods.Front(); it != nil; it = it.Next() {
 			if it.Value.(*core.Pod).Name == name {
@@ -189,7 +200,7 @@ func (cm *componentManagerInner) ListPodsByLabelsAndPhase(
 	defer cm.mtx.RUnlock()
 	pods := list.New()
 	for _, pod := range cm.pods {
-		if pod.Status.Phase == phase && reflect.DeepEqual(*labels, pod.Labels) {
+		if pod.Status.Phase == phase && api.IsSubset(labels, &pod.Labels) {
 			pods.PushBack(pod)
 		}
 	}
@@ -284,6 +295,12 @@ func (cm *componentManagerInner) DeleteServiceByName(name string) {
 	delete(cm.services, name)
 }
 
+func (cm *componentManagerInner) AddPodToService(serviceName string, pod *core.Pod) {
+	cm.mtx.Lock()
+	defer cm.mtx.Unlock()
+	cm.servicesToPods[serviceName].PushBack(pod)
+}
+
 func (cm *componentManagerInner) GetServiceByName(name string) *core.Service {
 	cm.mtx.RLock()
 	defer cm.mtx.RUnlock()
@@ -307,12 +324,12 @@ func (cm *componentManagerInner) ListServices() []*core.Service {
 	return services
 }
 
-func (cm *componentManagerInner) ListServicesByLabels(labels *map[string]string) []string {
+func (cm *componentManagerInner) ListServicesByLabels(podLabels *map[string]string) []string {
 	cm.mtx.RLock()
 	defer cm.mtx.RUnlock()
 	services := make([]string, 0)
 	for _, service := range cm.services {
-		if reflect.DeepEqual(*labels, service.Spec.Selector) {
+		if api.IsSubset(&service.Spec.Selector, podLabels) {
 			services = append(services, service.Name)
 		}
 	}

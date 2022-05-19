@@ -42,12 +42,12 @@ type server struct {
 	pb.UnimplementedApiServerCtlServiceServer
 }
 
-func (s *server) GetPods(ctx context.Context, req *pb.GetPodsRequest) (*pb.GetPodsResponse, error) {
+func (s *server) DescribePods(ctx context.Context, req *pb.DescribePodsRequest) (*pb.DescribePodsResponse, error) {
 	foundPods, notFoundPods := podController.GetPods(req.All, req.PodNames)
 
 	foundPodsData, err := json.Marshal(foundPods)
 	if err != nil {
-		return &pb.GetPodsResponse{
+		return &pb.DescribePodsResponse{
 			Status:       -1,
 			Pods:         nil,
 			NotFoundPods: nil,
@@ -56,7 +56,7 @@ func (s *server) GetPods(ctx context.Context, req *pb.GetPodsRequest) (*pb.GetPo
 
 	notFoundPodsData, err := json.Marshal(notFoundPods)
 	if err != nil {
-		return &pb.GetPodsResponse{
+		return &pb.DescribePodsResponse{
 			Status:       -1,
 			Pods:         nil,
 			NotFoundPods: nil,
@@ -70,7 +70,7 @@ func (s *server) GetPods(ctx context.Context, req *pb.GetPodsRequest) (*pb.GetPo
 		status = 0
 	}
 
-	return &pb.GetPodsResponse{
+	return &pb.DescribePodsResponse{
 		Status:       status,
 		Pods:         foundPodsData,
 		NotFoundPods: notFoundPodsData,

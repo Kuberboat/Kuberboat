@@ -73,12 +73,12 @@ func init() {
 
 func describePods(podNames []string) {
 	client := client.NewCtlClient()
-	var resp *pb.GetPodsResponse
+	var resp *pb.DescribePodsResponse
 	var err error
 	if podNames == nil {
-		resp, err = client.GetPods(true, nil)
+		resp, err = client.DescribePods(true, nil)
 	} else {
-		resp, err = client.GetPods(false, podNames)
+		resp, err = client.DescribePods(false, podNames)
 	}
 
 	if err != nil {

@@ -40,3 +40,14 @@ func Max(a, b int) int {
 	}
 	return b
 }
+
+func IsSubset(inner, outer *map[string]string) bool {
+	for k, v := range *inner {
+		outerV, ok := (*outer)[k]
+		if !ok || outerV != v {
+			return false
+		}
+	}
+	fmt.Println("IsSubset!")
+	return true
+}

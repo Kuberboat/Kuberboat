@@ -260,6 +260,11 @@ func (c *basicController) handlePodReady(podName string) error {
 			return err
 		}
 	}
+
+	for _, serviceName := range serviceNames {
+		c.componentManager.AddPodToService(serviceName, pod)
+	}
+
 	return nil
 }
 

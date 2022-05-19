@@ -34,10 +34,10 @@ func NewCtlClient() *ctlClient {
 	}
 }
 
-func (c *ctlClient) GetPods(all bool, names []string) (*pb.GetPodsResponse, error) {
+func (c *ctlClient) DescribePods(all bool, names []string) (*pb.DescribePodsResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
-	return c.client.GetPods(ctx, &pb.GetPodsRequest{
+	return c.client.DescribePods(ctx, &pb.DescribePodsRequest{
 		All:      all,
 		PodNames: names,
 	})

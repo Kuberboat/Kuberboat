@@ -4,6 +4,7 @@ metadata:
   labels:
     app: my-nginx
     env: dev
+    version: v1
 spec:
   containers:
     - name: nginx
