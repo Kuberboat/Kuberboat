@@ -1,10 +1,12 @@
 package kubelet
 
 import (
+	"bufio"
 	"context"
 	"fmt"
 	"io"
 	"net"
+	"os"
 	"regexp"
 	"runtime"
 	"strconv"
@@ -21,21 +23,25 @@ import (
 	dockerclient "github.com/docker/docker/client"
 	dockernat "github.com/docker/go-connections/nat"
 	etcd "go.etcd.io/etcd/client/v3"
+	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/kubelet/client"
 	kubeletpod "p9t.io/kuberboat/pkg/kubelet/pod"
 )
 
 const (
-	pauseImage      string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
-	cadvisorImage   string = "google/cadvisor:v0.33.0"
-	cadvisorPort    uint16 = 8080
-	cadvisorName    string = "kuberboat-cadvisor"
-	Port                   = 4000
-	dnsIPKey               = "/ip/coredns"
-	etcdPort               = 2379
-	etcdDialTimeout        = 2000000000
-	monitorInterval        = 3
+	pauseImage       string = "docker.io/mirrorgooglecontainers/pause-amd64:3.0"
+	cadvisorImage    string = "google/cadvisor:v0.33.0"
+	cadvisorPort     uint16 = 8080
+	cadvisorName     string = "kuberboat-cadvisor"
+	Port                    = 4000
+	dnsIPKey                = "/ip/coredns"
+	dnsHostIPKey            = "/ip/coredns-host"
+	resolvConfPath          = "/etc/resolv.conf"
+	resolvConfAnchor        = "# Kuberboat DNS name server."
+	etcdPort                = 2379
+	etcdDialTimeout         = 2000000000
+	monitorInterval         = 3
 )
 
 // Kubelet defines public methods of a PodManager.
@@ -105,7 +111,7 @@ func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) 
 	kl.apiClient = apiClient
 	glog.Infof("connected to api server at %v:%v", apiserverStatus.IP, apiserverStatus.Port)
 
-	// Get CoreDNS IP from etcd.
+	// Get CoreDNS IP from etcd. This IP is a pod IP, which will be used by pods.
 	var dnsIP string
 	etcdClient, err := etcd.New(etcd.Config{
 		Endpoints:   []string{fmt.Sprintf("%v:%v", apiserverStatus.IP, etcdPort)},
@@ -131,6 +137,83 @@ func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) 
 		}
 	}
 	kl.dnsIP = dnsIP
+
+	// Get CoreDNS-host IP from etcd. This IP is used to modify /etc/resolv.conf,
+	// for use of host machine to access domain name.
+	if os.Getenv(api.CiMode) != "ON" {
+		ctx, cancel = context.WithTimeout(context.Background(), etcdDialTimeout)
+		resp, err = etcdClient.Get(ctx, dnsHostIPKey)
+		cancel()
+		if err != nil {
+			return err
+		}
+		for _, kv := range resp.Kvs {
+			if string(kv.Key) == dnsHostIPKey {
+				dnsHostIP := string(kv.Value)
+				if net.ParseIP(dnsHostIP) == nil {
+					glog.Errorf("got invalid DNS IP (for use of host) from etcd: %v, host machines might not be able to access domain names", dnsHostIP)
+				} else {
+					glog.Infof("got DNS server IP (for use of host): %v", dnsHostIP)
+					if err := updateResolvConf(dnsHostIP); err != nil {
+						glog.Errorf("failed to update resolv.conf: %v", err.Error())
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// Update the host machine's /etc/resolv.conf.
+// If kuberboat's name server entry does not exist, create one as the first nameserver entry.
+// Otherwise overwrite the existing entry.
+func updateResolvConf(dnsHostIP string) error {
+	lines := make([]string, 0)
+	file, err := os.OpenFile("/etc/resolv.conf", os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	lineNum := 0
+	firstNameServerLine := 0
+	hasFoundNameServerEntry := false
+	hasReplaced := false
+	newEntry := fmt.Sprintf("nameserver %v", dnsHostIP)
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "nameserver") && !hasFoundNameServerEntry {
+			firstNameServerLine = lineNum
+			hasFoundNameServerEntry = true
+			lines = append(lines, line)
+		} else if line == resolvConfAnchor {
+			// Replace the next line.
+			lines = append(lines, line)
+			lines = append(lines, newEntry)
+			scanner.Scan()
+			hasReplaced = true
+		} else {
+			lines = append(lines, line)
+		}
+		lineNum++
+	}
+	_, err = file.Seek(0, 0)
+	if err != nil {
+		return err
+	}
+	for i, line := range lines {
+		// If the anchor is not found, add a new entry.
+		if !hasReplaced && i == firstNameServerLine {
+			file.WriteString(resolvConfAnchor)
+			file.WriteString("\n")
+			file.WriteString(newEntry)
+			file.WriteString("\n")
+		}
+		file.WriteString(line)
+		file.WriteString("\n")
+	}
 
 	return nil
 }
@@ -462,7 +545,7 @@ func (kl *dockerKubelet) GetPodLog(ctx context.Context, podName string) string {
 	}
 	containerIds, ok := kl.podRuntimeManager.ContainersByPod(pod)
 	if !ok {
-		glog.Errorf("pod %v has no containers", podName)
+		glog.Warningf("pod %v has no containers", podName)
 	}
 	var logBuilder strings.Builder
 	for _, containerId := range containerIds {

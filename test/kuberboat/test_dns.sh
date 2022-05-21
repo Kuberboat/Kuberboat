@@ -44,6 +44,10 @@ test_create_dns() {
 	if ! echo $output | grep -q "$nginx_welcome"; then
 		return -1
 	fi
+	output=$(curl $test_url --connect-timeout 5 2>&1)
+	if ! echo $output | grep -q "$nginx_welcome"; then
+		return -1
+	fi
 	$kubectl delete services --all >/dev/null
 	$kubectl delete deployments --all >/dev/null
 	return 0

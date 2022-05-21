@@ -20,3 +20,8 @@ if [ $? -eq 0 ]; then
 else
 	echo "fail to stop coredns, please remove it manually"
 fi
+
+# Re-enable systemd-resolved.
+systemctl enable systemd-resolved &> /dev/null
+systemctl start systemd-resolved &> /dev/null
+echo "systemd-resolved re-enabled"
