@@ -21,7 +21,9 @@ else
 	echo "fail to stop coredns, please remove it manually"
 fi
 
-# Re-enable systemd-resolved.
-systemctl enable systemd-resolved &> /dev/null
-systemctl start systemd-resolved &> /dev/null
-echo "systemd-resolved re-enabled"
+# Re-enable systemd-resolved (when not on ci).
+if [[ $KUBE_CI_MODE != "ON" ]]; then
+	systemctl enable systemd-resolved &>/dev/null
+	systemctl start systemd-resolved &>/dev/null
+	echo "systemd-resolved re-enabled"
+fi

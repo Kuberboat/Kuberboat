@@ -41,6 +41,8 @@ stages:
         script: |-
           export PATH=$PATH:/usr/local/go/bin
           export PATH="$PATH:$(go env GOPATH)/bin"
+          export KUBE_CI_MODE=ON
+          export KUBE_SERVER_IP=127.0.0.1
           git clone git@gitee.com:xx01cyx/kuberboat.git
           cd ${REPO_NAME}
           if [ $? -ne 0 ]

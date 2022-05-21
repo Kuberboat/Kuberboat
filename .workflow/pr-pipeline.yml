@@ -17,7 +17,6 @@ variables:
   START_STANDALONE_PATH: ./scripts/kuberboat/start_standalone.sh
   STOP_STANDALONE_PATH: ./scripts/kuberboat/stop_standalone.sh
   TEST_ALL_PATH: ./test/kuberboat/test_all.sh
-  KUBE_SERVER_IP: 139.224.14.93
 stages:
   - name: kuberboat-ci-test
     displayName: CI Test
@@ -46,8 +45,8 @@ stages:
         script: |-
           export PATH=$PATH:/usr/local/go/bin
           export PATH="$PATH:$(go env GOPATH)/bin"
-          export KUBE_SERVER_IP=${KUBE_SERVER_IP}
           export KUBE_CI_MODE=ON
+          export KUBE_SERVER_IP=127.0.0.1
           git clone -b ${GITEE_SOURCE_BRANCH} git@gitee.com:xx01cyx/kuberboat.git
           cd ${REPO_NAME}
           if [ $? -ne 0 ]
