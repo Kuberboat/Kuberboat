@@ -17,7 +17,7 @@ test_create_dns() {
 	if [ $? -ne 0 ]; then
 		return -1
 	fi
-	sleep 10
+	sleep 15
 	$kubectl apply -f $proj_root_path/test/examples/service.yaml >/dev/null
 	if [ $? -ne 0 ]; then
 		return -1
