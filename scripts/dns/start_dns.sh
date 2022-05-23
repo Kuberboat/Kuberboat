@@ -48,10 +48,15 @@ if [ $? -ne 0 ]; then
 		--restart always \
 		-v $nginx_config_dir:/etc/nginx/conf.d \
 		-p 80:80 \
-		nginx:1.21.6 &>/dev/null &&
-		echo "NGINX container started, name is ${nginx_container_name}"
+		nginx:1.21.6 &>/dev/null
+	if [ $? -eq 0 ]; then
+		echo "nginx container started, name is ${nginx_container_name}"
+	else
+		echo "Fail to start nginx"
+		exit -1
+	fi
 else
-	echo "NGINX container already started"
+	echo "nginx container already started"
 fi
 
 # Write nginx IP to etcd.
@@ -86,16 +91,26 @@ if [ $? -ne 0 ]; then
 			-v $coredns_config_dir:/etc/coredns \
 			-p 53:53/udp \
 			coredns/coredns:1.9.1 \
-			-conf /etc/coredns/Corefile &>/dev/null &&
+			-conf /etc/coredns/Corefile &>/dev/null
+		if [ $? -eq 0 ]; then
 			echo "CoreDNS container started, name is ${coredns_container_name}"
+		else
+			echo "Fail to start CoreDNS"
+			exit -1
+		fi
 	else
 		docker run -d \
 			--name $coredns_container_name \
 			--restart always \
 			-v $coredns_config_dir:/etc/coredns \
 			coredns/coredns:1.9.1 \
-			-conf /etc/coredns/Corefile &>/dev/null &&
+			-conf /etc/coredns/Corefile &>/dev/null
+		if [ $? -eq 0 ]; then
 			echo "CoreDNS container started, name is ${coredns_container_name}"
+		else
+			echo "Fail to start CoreDNS"
+			exit -1
+		fi
 	fi
 else
 	echo "CoreDNS container already started"
