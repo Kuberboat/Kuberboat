@@ -363,7 +363,7 @@ func StartServer(etcdServers string) {
 	dnsController = dns.NewDNSController(componentManager)
 	autoscalerController = scale.NewAutoscalerController(componentManager, metricsManager)
 
-	if err := recover.Recover(&nodeManager, &componentManager); err != nil {
+	if err := recover.Recover(&nodeManager, &componentManager, serviceController); err != nil {
 		glog.Fatal(err)
 	}
 

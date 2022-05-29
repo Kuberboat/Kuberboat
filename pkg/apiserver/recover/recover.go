@@ -3,6 +3,7 @@ package recover
 import (
 	"container/list"
 	"fmt"
+	"net"
 	"os"
 
 	"github.com/golang/glog"
@@ -13,9 +14,10 @@ import (
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
 	"p9t.io/kuberboat/pkg/apiserver/node"
 	metrics "p9t.io/kuberboat/pkg/apiserver/scale"
+	"p9t.io/kuberboat/pkg/apiserver/service"
 )
 
-func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {
+func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager, sm service.Controller) error {
 	// recover all the nodes
 	var nodeType core.Node
 	rawNodes, err := etcd.Get("/Nodes", nodeType, clientv3.WithPrefix())
@@ -55,6 +57,16 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager) error {
 		(*cm).SetPod(&pod)
 	}
 	// recover all the services
+	var ipType net.IP
+	rawLastIp, err := etcd.Get("/IPAssigner", ipType)
+	if err != nil {
+		return err
+	}
+	for _, rawIp := range rawLastIp {
+		ip := rawIp.(net.IP)
+		sm.SetCurrentIP(ip)
+	}
+
 	var serviceType core.Service
 	rawServices, err := etcd.Get("/Services/Meta", serviceType, clientv3.WithPrefix())
 	if err != nil {

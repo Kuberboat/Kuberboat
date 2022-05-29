@@ -3,6 +3,8 @@ package service
 import (
 	"fmt"
 	"net"
+
+	"p9t.io/kuberboat/pkg/apiserver/etcd"
 )
 
 const (
@@ -45,6 +47,8 @@ func (ca *clusterIPAssigner) NextClusterIP() (string, error) {
 	ca.currentIP = newIP
 
 	// TODO: persist to etcd
-
+	if err := etcd.Put("/IPAssigner", newIP); err != nil {
+		return "", err
+	}
 	return ca.currentIP.To4().String(), nil
 }
