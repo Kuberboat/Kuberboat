@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net"
 	"reflect"
 	"strings"
 	"time"
@@ -85,6 +86,15 @@ func Get(key string, valueType interface{}, opts ...clientv3.OpOption) ([]interf
 		}
 		return values, nil
 	case core.Node:
+		for _, kv := range resp.Kvs {
+			buffer := valueType
+			if err = json.Unmarshal(kv.Value, &buffer); err != nil {
+				return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
+			}
+			values = append(values, buffer)
+		}
+		return values, nil
+	case net.IP:
 		for _, kv := range resp.Kvs {
 			buffer := valueType
 			if err = json.Unmarshal(kv.Value, &buffer); err != nil {

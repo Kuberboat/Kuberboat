@@ -2,6 +2,7 @@ package service
 
 import (
 	"fmt"
+	"net"
 	"sync"
 	"time"
 
@@ -30,6 +31,8 @@ type Controller interface {
 	DeleteAllServices() error
 	// DescribeServices return all the services and their respective pods.
 	DescribeServices(all bool, names []string) ([]*core.Service, [][]string, []string)
+	// Set the current ip of clusterIPAssigner
+	SetCurrentIP(ip net.IP)
 }
 
 type basicController struct {
@@ -297,4 +300,8 @@ func (c *basicController) handlePodDeletion(pod *core.Pod) error {
 		}
 	}
 	return nil
+}
+
+func (c *basicController) SetCurrentIP(ip net.IP) {
+	c.clusterIPAssigner.currentIP = ip
 }
