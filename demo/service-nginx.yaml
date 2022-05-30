@@ -1,0 +1,10 @@
+kind: Service
+metadata:
+  name: service-nginx
+spec:
+  ports:
+    - port: 8000
+      targetPort: 80
+  selector:
+    app: my-nginx
+    env: dev

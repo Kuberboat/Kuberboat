@@ -1,0 +1,12 @@
+kind: DNS
+metadata:
+  name: dns-version
+spec:
+  host: test.com
+  paths:
+  - path: /aaa 
+    service: service-version
+    port: 8088
+  - path: /bbb
+    service: service-nginx
+    port: 8000

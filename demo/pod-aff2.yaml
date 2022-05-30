@@ -1,0 +1,30 @@
+kind: Pod
+metadata:
+  name: pod-aff2
+  labels:
+    env: dev
+spec:
+  containers:
+    - name: version_server
+      image: windowsxpbeta/http_server:v1.0
+      ports: 
+        - 8080
+      resources:
+        cpu: 1
+        memory: 128000000
+      volumeMounts:
+        - name: storage
+          mountPath: /src/mount_data
+    - name: nginx
+      image: nginx:1.21.6
+      ports: 
+        - 80
+      resources:
+        cpu: 1
+        memory: 102400000
+      volumeMounts:
+        - name: storage
+          mountPath: /tmp/mount_data
+  volumes:
+    - storage
+  affinity: pod1

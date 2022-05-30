@@ -1,0 +1,16 @@
+kind: Deployment
+metadata:
+  name: deployment-version
+spec:
+  replicas: 5
+  template:
+    metadata:
+      labels:
+        app: my-version
+        env: dev
+    spec:
+      containers:
+      - name: version_server
+        image: windowsxpbeta/http_server:v1.0
+        ports: 
+          - 8080

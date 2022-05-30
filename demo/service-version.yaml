@@ -1,0 +1,10 @@
+kind: Service
+metadata:
+  name: service-version
+spec:
+  ports:
+    - port: 8088
+      targetPort: 8080
+  selector:
+    app: my-version
+    env: dev
