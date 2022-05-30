@@ -73,8 +73,6 @@ if [[ $KUBE_CI_MODE != "ON" ]]; then
 	systemctl disable systemd-resolved &>/dev/null
 	cat <<EOF
 systemd-resolved has been disabled on this machine to free up udp 53 port. 
-To use our CoreDNS name server, modify /etc/resolv.conf and append 
-	nameserver 127.0.0.1
 If you would like to turn systemd-resolved back on (they can be automatically
 restarted with stop_dns.sh), please shutdown CoreDNS nameserver, then type
 	systemctl enable systemd-resolved
