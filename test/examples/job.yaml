@@ -1,4 +1,0 @@
-kind: Job
-metadata:
-  name: test-job
-path: /root/git-repos/kuberboat/assets/cuda/cuda.cu

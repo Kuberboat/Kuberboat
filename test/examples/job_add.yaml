@@ -1,0 +1,5 @@
+kind: Job
+metadata:
+  name: mat-add
+cudaPath: /root/git-repos/kuberboat/assets/cuda/add.cu
+scriptPath: /root/git-repos/kuberboat/assets/cuda/add.mk
