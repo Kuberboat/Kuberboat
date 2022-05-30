@@ -7,6 +7,7 @@ import (
 	"net"
 
 	"github.com/golang/glog"
+	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 	"p9t.io/kuberboat/pkg/api/core"
 	"p9t.io/kuberboat/pkg/apiserver"
@@ -344,6 +345,15 @@ func (*server) CreateAutoscaler(ctx context.Context, req *pb.CreateAutoscalerReq
 		return &pb.DefaultResponse{Status: -1}, err
 	}
 	return &pb.DefaultResponse{Status: 0}, nil
+}
+
+func (*server) DescribeNodes(ctx context.Context, req *empty.Empty) (*pb.DescribeNodesResponse, error) {
+	nodes := nodeController.GetRegisteredNodes()
+	data, err := json.Marshal(nodes)
+	if err != nil {
+		return &pb.DescribeNodesResponse{Status: -1}, err
+	}
+	return &pb.DescribeNodesResponse{Status: 0, Nodes: data}, nil
 }
 
 func StartServer(etcdServers string) {

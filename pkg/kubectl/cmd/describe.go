@@ -61,6 +61,8 @@ Examples:
 			describeDNSs(args[1:])
 		case "dnss":
 			describeDNSs(nil)
+		case "nodes":
+			describeNodes()
 		default:
 			log.Fatalf("%v is not a supported resource type", resourceType)
 		}
@@ -242,4 +244,23 @@ func describeDNSs(dnsNames []string) {
 		}
 		fmt.Printf("The following pods are not found: %v\n", notFoundDNSs)
 	}
+}
+
+func describeNodes() {
+	client := client.NewCtlClient()
+	resp, err := client.DescribeNodes()
+	if err != nil {
+		log.Fatal(err)
+	}
+	var nodes []*core.Node
+	err = json.Unmarshal(resp.Nodes, &nodes)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	prettyjson, err := json.MarshalIndent(nodes, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(prettyjson))
 }

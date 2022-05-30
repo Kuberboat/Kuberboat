@@ -21,6 +21,8 @@ import (
 type Controller interface {
 	// RegisterNode adds the node into the cluster and notifies the node of its successful registry.
 	RegisterNode(ctx context.Context, node *core.Node) error
+	// GetRegisteredNodes returns all registered nodes.
+	GetRegisteredNodes() []*core.Node
 }
 
 type basicController struct {
@@ -97,4 +99,8 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 	)
 
 	return nil
+}
+
+func (bc *basicController) GetRegisteredNodes() []*core.Node {
+	return bc.nodeManager.RegisteredNodes()
 }

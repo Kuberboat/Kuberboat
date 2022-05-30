@@ -578,7 +578,7 @@ func (kl *dockerKubelet) monitorPods() {
 			isFinished := true
 			isFailed := false
 			// first check if all the containers are created
-			if len(containerIds) != len(pod.Spec.Containers) {
+			if len(containerIds) != len(pod.Spec.Containers) && pod.Status.Phase == core.PodReady {
 				isFailed = true
 			} else {
 				for _, containerId := range containerIds {

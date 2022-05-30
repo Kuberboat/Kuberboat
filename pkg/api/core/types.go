@@ -281,7 +281,7 @@ type NodeStatus struct {
 	// represented in IPV4.
 	Address string
 	// Port of the kubelet grpc server on node
-	Port uint16
+	Port uint16 `json:"kubeletPort"`
 }
 
 // Node represents a host machine where Pods are actually running.
@@ -291,7 +291,7 @@ type Node struct {
 	// Standard object's metadata.
 	ObjectMeta `yaml:"metadata"`
 	// Specification of the desired behavior of the node.
-	Spec NodeSpec
+	Spec NodeSpec `json:"-"`
 	// Most recently observed status of the node.
 	Status NodeStatus
 }
