@@ -5,7 +5,6 @@ package apiserver_ctl_service;
 option go_package = "p9t.io/kuberboat/pkg/proto";
 
 import "default.proto";
-import "google/protobuf/empty.proto";
 
 message CreatePodRequest {
   bytes pod = 1;
@@ -132,5 +131,5 @@ service ApiServerCtlService {
   rpc CreateJob(CreateJobRequest) returns(default.DefaultResponse);
   rpc GetJobLog(LogJobRequest) returns(LogJobResponse);
   rpc CreateAutoscaler(CreateAutoscalerRequest) returns(default.DefaultResponse);
-  rpc DescribeNodes(google.protobuf.Empty) returns(DescribeNodesResponse);
+  rpc DescribeNodes(default.EmptyRequest) returns(DescribeNodesResponse);
 }

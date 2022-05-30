@@ -7,7 +7,6 @@ import (
 	"log"
 	"time"
 
-	"github.com/golang/protobuf/ptypes/empty"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"p9t.io/kuberboat/pkg/api/core"
@@ -199,5 +198,5 @@ func (c *ctlClient) CreateAutoscaler(autoscaler *core.HorizontalPodAutoscaler) (
 func (c *ctlClient) DescribeNodes() (*pb.DescribeNodesResponse, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
 	defer cancel()
-	return c.client.DescribeNodes(ctx, &empty.Empty{})
+	return c.client.DescribeNodes(ctx, &pb.EmptyRequest{})
 }
