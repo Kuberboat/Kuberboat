@@ -10,6 +10,7 @@ password = 'rAnx&q1F'
 
 hpc_dir = f'/lustre/home/acct-stu/{user}/cuda-test'
 cuda_path = '/src/cuda/cuda.cu'
+script_path = '/src/cuda/Makefile'
 retry_times = 3
 query_times = 50
 gap_between_query = 1
@@ -24,6 +25,7 @@ def main():
         for i in range(retry_times):
             try:
                 c.put(cuda_path, remote=hpc_dir)
+                c.put(script_path, remote=hpc_dir)
             except Exception as e:
                 print(f'round {i}: {e}')
             else:
@@ -73,8 +75,8 @@ def main():
         is_ok = False
         for i in range(retry_times):
             try:
-                c.get(f'{hpc_dir}/{job_id}.err', f'{job_id}.err')
-                c.get(f'{hpc_dir}/{job_id}.out', f'{job_id}.out')
+                c.get(f'{hpc_dir}/out/{job_id}.err', f'{job_id}.err')
+                c.get(f'{hpc_dir}/out/{job_id}.out', f'{job_id}.out')
             except FileNotFoundError as fe:
                 print(f'round {i}: {fe}')
             else:
@@ -82,6 +84,7 @@ def main():
                 break
         if not is_ok:
             print('failed to get job\'s output files')
+            sys.exit(1)
 
         if os.path.getsize(f'{job_id}.err') != 0:
             print('job failed! error message is as follows')

@@ -82,8 +82,11 @@ func (m *basicController) ApplyJob(job *core.Job) error {
 	if err := os.MkdirAll("/tmp/cuda", 0777); err != nil {
 		glog.Fatalf("failed to create cuda dir: %v", err.Error())
 	}
-	if err := os.WriteFile("/tmp/cuda/cuda.cu", job.Data, 0777); err != nil {
+	if err := os.WriteFile("/tmp/cuda/cuda.cu", job.CudaData, 0777); err != nil {
 		glog.Fatalf("fail to persist cuda file: %v", err.Error())
+	}
+	if err := os.WriteFile("/tmp/cuda/Makefile", job.ScriptData, 0777); err != nil {
+		glog.Fatalf("fail to persist compile script: %v", err.Error())
 	}
 	if err := m.createCorrespondingPod(job.Name); err != nil {
 		return err
@@ -117,6 +120,7 @@ func (m *basicController) HandleEvent(event apiserver.Event) {
 			m.retryBudget[podName] = budget - 1
 		} else {
 			glog.Infof("job %v failed completely probably due to HPC error; goto hpc to have a check", podName)
+			m.podController.DeletePodByName(podName)
 		}
 	case apiserver.PodSucceed:
 		// we cannot delete the pod otherwise we cannot reach its log

@@ -370,10 +370,14 @@ type Job struct {
 	Kind
 	// Standard object's meta. Only name is used
 	ObjectMeta `yaml:"metadata"`
-	// Path is the path to the cuda file
-	Path string
-	// Data is the cuda file content
-	Data []byte
+	// CudaPath is the path to the cuda file
+	CudaPath string `yaml:"cudaPath"`
+	// ScriptPath is the path to the makefile of cuda file
+	ScriptPath string `yaml:"scriptPath"`
+	// CudaData is the cuda file content
+	CudaData []byte
+	// ScriptData is the script content
+	ScriptData []byte
 }
 
 // ScaleTarget describes the target of an autoscaler.

@@ -1,0 +1,5 @@
+kind: Job
+metadata:
+  name: mat-mul
+cudaPath: /root/git-repos/kuberboat/assets/cuda/multiply.cu
+scriptPath: /root/git-repos/kuberboat/assets/cuda/multiply.mk

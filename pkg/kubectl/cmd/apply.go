@@ -164,11 +164,16 @@ func applyJob(data []byte) {
 	if err := yaml.Unmarshal(data, &job); err != nil {
 		log.Fatalf("cannot unmarshal data: %v", err)
 	}
-	cudaFile, err := os.ReadFile(job.Path)
+	cudaFile, err := os.ReadFile(job.CudaPath)
 	if err != nil {
 		log.Fatal(err)
 	}
-	job.Data = cudaFile
+	job.CudaData = cudaFile
+	scriptFile, err := os.ReadFile(job.ScriptPath)
+	if err != nil {
+		log.Fatal(err)
+	}
+	job.ScriptData = scriptFile
 	client := client.NewCtlClient()
 	response, err := client.CreateJob(&job)
 	if err != nil {
