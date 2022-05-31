@@ -2,12 +2,21 @@ package kubelet
 
 import (
 	"fmt"
+	"net"
+	"strings"
 	"sync"
 
 	"github.com/golang/glog"
 
 	"p9t.io/kuberboat/pkg/api/core"
+	kubeletpod "p9t.io/kuberboat/pkg/kubelet/pod"
 	kubeproxy "p9t.io/kuberboat/pkg/kubelet/proxy"
+)
+
+const (
+	FlannelNetInterfaceName string = "flannel.1"
+	Ens3NetInterfaceName    string = "ens3"
+	Eth0NetInterfaceName    string = "eth0"
 )
 
 // KubeProxy manages the communication between pods via service.
@@ -27,14 +36,27 @@ type KubeProxy interface {
 type kubeProxyInner struct {
 	// mtx ensures concurrent access to inner data structures are safe.
 	mtx sync.Mutex
+	// podMetaManager manages pod metadata.
+	podMetaManager kubeletpod.MetaManager
 	// serviceMetaManager maintains the metadata for created services.
 	serviceMetaManager kubeproxy.MetaManager
 	// iptablesClient provides APIs to manage kernel iptables for service.
 	iptablesClient kubeproxy.IPTablesClient
 }
 
-func NewKubeProxy() KubeProxy {
-	cli, err := kubeproxy.NewIptablesClient()
+func NewKubeProxy(podMetaManager kubeletpod.MetaManager) KubeProxy {
+	hostInetIP := getNetInterfaceIpv4Addr(Ens3NetInterfaceName)
+	if hostInetIP == "" {
+		hostInetIP = getNetInterfaceIpv4Addr(Eth0NetInterfaceName)
+		if hostInetIP == "" {
+			glog.Fatalf("cannot get ipv4 address for the host")
+		}
+	}
+	flannelIP := getNetInterfaceIpv4Addr(FlannelNetInterfaceName)
+	if flannelIP == "" {
+		glog.Fatalf("cannot get ipv4 address for %s", FlannelNetInterfaceName)
+	}
+	cli, err := kubeproxy.NewIptablesClient(hostInetIP, flannelIP)
 	if err != nil {
 		glog.Fatal(err)
 	}
@@ -44,6 +66,7 @@ func NewKubeProxy() KubeProxy {
 	}
 	return &kubeProxyInner{
 		mtx:                sync.Mutex{},
+		podMetaManager:     podMetaManager,
 		serviceMetaManager: kubeproxy.NewMetaManager(),
 		iptablesClient:     cli,
 	}
@@ -75,7 +98,8 @@ func (kp *kubeProxyInner) CreateService(
 			podChainName := kp.iptablesClient.CreatePodChain()
 
 			// Add a jump-to-mark rule and a DNAT rule to the chain.
-			err := kp.iptablesClient.ApplyPodChainRules(podChainName, podIP, servicePort.TargetPort)
+			_, exist := kp.podMetaManager.PodByName(podName)
+			err := kp.iptablesClient.ApplyPodChainRules(podChainName, podIP, servicePort.TargetPort, exist)
 			if err != nil {
 				return err
 			}
@@ -132,7 +156,7 @@ func (kp *kubeProxyInner) DeleteService(serviceName string) error {
 		for _, podChain := range podChains {
 			err := kp.iptablesClient.DeletePodChain(podChain.PodName, podChain.ChainName)
 			if err != nil {
-				return err
+				glog.Error(err)
 			}
 		}
 
@@ -169,10 +193,12 @@ func (kp *kubeProxyInner) AddPodToServices(serviceNames []string, podName string
 			podChainName := kp.iptablesClient.CreatePodChain()
 
 			// Add a jump-to-mark rule and a DNAT rule to the chain.
+			_, exist := kp.podMetaManager.PodByName(podName)
 			err = kp.iptablesClient.ApplyPodChainRules(
 				podChainName,
 				podIP,
 				serviceChain.ServicePort.TargetPort,
+				exist,
 			)
 			if err != nil {
 				continue
@@ -254,4 +280,27 @@ func (kp *kubeProxyInner) DeletePodFromServices(serviceNames []string, podName s
 	}
 
 	return err
+}
+
+// getNetInterfaceIpv4Addr gets the IPV4 address of given net interface.
+func getNetInterfaceIpv4Addr(interfaceName string) string {
+	ifaces, _ := net.Interfaces()
+	for _, iface := range ifaces {
+		if iface.Name == interfaceName {
+			addrs, err := iface.Addrs()
+			if err != nil {
+				return ""
+			}
+			for _, addr := range addrs {
+				addrStr := addr.String()
+				split := strings.Split(addrStr, "/")
+				addrStr0 := split[0]
+				ip := net.ParseIP(addrStr0)
+				if ip.To4() != nil {
+					return ip.To4().String()
+				}
+			}
+		}
+	}
+	return ""
 }

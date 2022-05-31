@@ -13,9 +13,11 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 	kubeerror "p9t.io/kuberboat/pkg/api/error"
 	kl "p9t.io/kuberboat/pkg/kubelet"
+	"p9t.io/kuberboat/pkg/kubelet/pod"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
+var podMetaManager pod.MetaManager
 var kubelet kl.Kubelet
 var kubeProxy kl.KubeProxy
 
@@ -119,8 +121,9 @@ func (s *server) DeletePodFromServices(ctx context.Context, req *pb.KubeletUpdat
 }
 
 func StartServer() {
-	kubelet = kl.NewKubelet()
-	kubeProxy = kl.NewKubeProxy()
+	podMetaManager = pod.NewMetaManager()
+	kubelet = kl.NewKubelet(podMetaManager)
+	kubeProxy = kl.NewKubeProxy(podMetaManager)
 
 	grpcServer := grpc.NewServer()
 	pb.RegisterKubeletApiServerServiceServer(grpcServer, &server{})

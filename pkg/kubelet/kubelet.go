@@ -84,7 +84,7 @@ type dockerKubelet struct {
 }
 
 // newKubelet creates a new Kubelet object.
-func NewKubelet() Kubelet {
+func NewKubelet(podMetaManager kubeletpod.MetaManager) Kubelet {
 	// Create docker client.
 	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
 	if err != nil {
@@ -92,7 +92,7 @@ func NewKubelet() Kubelet {
 	}
 	kubelet := &dockerKubelet{
 		dockerClient:      cli,
-		podMetaManager:    kubeletpod.NewMetaManager(),
+		podMetaManager:    podMetaManager,
 		podRuntimeManager: kubeletpod.NewRuntimeManager(),
 	}
 	go func() {
