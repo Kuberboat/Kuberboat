@@ -131,7 +131,7 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	}
 
 	glog.Infof(
-		"POD [%v]: create pod on node with IP %v",
+		"POD [%v]: pod created on node with IP %v",
 		pod.Name,
 		pod.Status.HostIP,
 	)

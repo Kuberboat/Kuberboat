@@ -93,7 +93,7 @@ func (bc *basicController) RegisterNode(ctx context.Context, node *core.Node) er
 	}
 
 	glog.Infof(
-		"NODE [%s]: successfully registered with IP address %s",
+		"NODE [%s]: node registered with IP address %s",
 		node.Name,
 		node.Status.Address,
 	)

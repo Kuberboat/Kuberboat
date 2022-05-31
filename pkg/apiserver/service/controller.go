@@ -113,6 +113,8 @@ func (c *basicController) CreateService(service *core.Service) error {
 	}
 	c.componentManager.SetService(service, selectedPods)
 
+	glog.Infof("SERVICE [%v]: service created with cluster ip %s", service.Name, service.Spec.ClusterIP)
+
 	return nil
 }
 
@@ -153,6 +155,8 @@ func (c *basicController) DeleteServiceByName(name string) error {
 
 	deleteServiceInEtcd(service.Name)
 	c.componentManager.DeleteServiceByName(name)
+
+	glog.Infof("SERVICE [%v]: service deleted with cluster ip %s", service.Name, service.Spec.ClusterIP)
 
 	return nil
 }

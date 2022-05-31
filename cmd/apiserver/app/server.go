@@ -166,14 +166,17 @@ func (s *server) UpdatePodStatus(ctx context.Context, req *pb.UpdatePodStatusReq
 
 	// Try to dispatch PodReadyEvent.
 	if prevStatus.Phase != core.PodReady && status.Phase == core.PodReady {
+		glog.Infof("EVENT: pod %v is ready", req.PodName)
 		apiserver.Dispatch(&apiserver.PodReadyEvent{PodName: req.PodName})
 	}
 	// Try to dispatch PodFailEvent.
 	if prevStatus.Phase != core.PodFailed && status.Phase == core.PodFailed {
+		glog.Infof("EVENT: pod %v failed", req.PodName)
 		apiserver.Dispatch(&apiserver.PodFailEvent{PodName: req.PodName})
 	}
 	// Try to dispatch PodSucceedEvent
 	if prevStatus.Phase != core.PodSucceeded && status.Phase == core.PodSucceeded {
+		glog.Infof("EVENT: pod %v succeeded", req.PodName)
 		apiserver.Dispatch(&apiserver.PodSucceedEvent{PodName: req.PodName})
 	}
 	return &pb.DefaultResponse{Status: 0}, nil
@@ -390,7 +393,7 @@ func StartServer(etcdServers string) {
 	pb.RegisterApiServerCtlServiceServer(apiServer, &server{})
 	pb.RegisterApiServerKubeletServiceServer(apiServer, &server{})
 
-	glog.Infof("Api server listening at %v", lis.Addr())
+	glog.Infof("API SERVER: listening at %v", lis.Addr())
 
 	if err := apiServer.Serve(lis); err != nil {
 		glog.Fatal(err)

@@ -92,6 +92,7 @@ func (m *basicController) ApplyJob(job *core.Job) error {
 		return err
 	}
 	m.retryBudget[job.Name] = 3
+	glog.Infof("JOB [%v]: job created", job.Name)
 	return nil
 }
 
@@ -114,10 +115,10 @@ func (m *basicController) HandleEvent(event apiserver.Event) {
 			if budget > 0 {
 				m.podController.DeletePodByName(podName) // avoid duplicate pod name
 				m.createCorrespondingPod(podName)
-				glog.Infof("job %v remain retry opportunities: %v", podName, budget-1)
+				glog.Infof("JOB [%v]: remain retry opportunities: %v", podName, budget-1)
 				m.retryBudget[podName] = budget - 1
 			} else {
-				glog.Infof("job %v failed completely probably due to HPC error; goto hpc to have a check", podName)
+				glog.Infof("JOB [%v]: failed completely probably due to HPC error; goto hpc to have a check", podName)
 				m.podController.DeletePodByName(podName)
 			}
 		}

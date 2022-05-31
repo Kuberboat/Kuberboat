@@ -232,6 +232,8 @@ func (bc *basicController) CreateAutoscaler(autoscaler *core.HorizontalPodAutosc
 	deployment := bc.componentManager.GetDeploymentByName(deploymentName)
 	clipDeploymentReplicas(deployment, autoscaler)
 
+	glog.Infof("AUTOSCALER [%v]: autoscaler created on deployment %v", autoscaler.Name, deploymentName)
+
 	return nil
 }
 

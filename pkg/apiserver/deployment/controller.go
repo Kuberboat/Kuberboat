@@ -147,6 +147,13 @@ func (m *basicController) ApplyDeployment(deployment *core.Deployment) error {
 		}
 		m.componentManager.SetDeployment(deployment, list.New())
 	}
+
+	glog.Infof(
+		"DEPLOYMENT [%v]: deployment created with %d replicas",
+		deployment.Name,
+		deployment.Spec.Replicas,
+	)
+
 	return nil
 }
 
@@ -260,7 +267,7 @@ func (m *basicController) DeleteDeploymentByName(name string) error {
 		// Delete the deployment in etcd and memory.
 		DeleteDeploymentInEtcd(name)
 		m.componentManager.DeleteDeploymentByName(name)
-		glog.Infof("DEPLOYMENT [%v]: successfully deleted", name)
+		glog.Infof("DEPLOYMENT [%v]: deployment deleted", name)
 	} else {
 		return fmt.Errorf("no such deployment: %v", name)
 	}
