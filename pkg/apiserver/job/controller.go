@@ -110,17 +110,16 @@ func (m *basicController) HandleEvent(event apiserver.Event) {
 	case apiserver.PodFail:
 		podName := event.(*apiserver.PodFailEvent).PodName
 		budget, ok := m.retryBudget[podName]
-		if !ok {
-			glog.Fatalf("job %v has no budgets", podName)
-		}
-		if budget > 0 {
-			m.podController.DeletePodByName(podName) // avoid duplicate pod name
-			m.createCorrespondingPod(podName)
-			glog.Infof("job %v remain retry opportunities: %v", podName, budget-1)
-			m.retryBudget[podName] = budget - 1
-		} else {
-			glog.Infof("job %v failed completely probably due to HPC error; goto hpc to have a check", podName)
-			m.podController.DeletePodByName(podName)
+		if ok {
+			if budget > 0 {
+				m.podController.DeletePodByName(podName) // avoid duplicate pod name
+				m.createCorrespondingPod(podName)
+				glog.Infof("job %v remain retry opportunities: %v", podName, budget-1)
+				m.retryBudget[podName] = budget - 1
+			} else {
+				glog.Infof("job %v failed completely probably due to HPC error; goto hpc to have a check", podName)
+				m.podController.DeletePodByName(podName)
+			}
 		}
 	case apiserver.PodSucceed:
 		// we cannot delete the pod otherwise we cannot reach its log

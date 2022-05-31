@@ -128,6 +128,8 @@ type PodStatus struct {
 	HostIP string
 	// IPv4 address assigned to the pod. Empty if not yet allocated.
 	PodIP string
+	// RunningContainers is the number of containers (aside from sandbox) that are running.
+	RunningContainers int
 }
 
 // Pod is a collection of containers that can run on a host. This resource is created

@@ -577,6 +577,7 @@ func (kl *dockerKubelet) monitorPods() {
 		if ok {
 			isFinished := true
 			isFailed := false
+			numRunningContainers := 0
 			// first check if all the containers are created
 			if len(containerIds) != len(pod.Spec.Containers) && pod.Status.Phase == core.PodReady {
 				isFailed = true
@@ -590,6 +591,7 @@ func (kl *dockerKubelet) monitorPods() {
 					})
 					if err != nil {
 						glog.Errorf("fail to query container %v's status: %v", containerId, err)
+						continue
 					}
 					container := containers[0]
 					switch container.State {
@@ -605,21 +607,23 @@ func (kl *dockerKubelet) monitorPods() {
 					case "dead":
 						isFailed = true
 					default:
+						numRunningContainers++
 						isFinished = false
-					}
-					if !isFinished {
-						break
 					}
 				}
 			}
 			if isFinished {
-				if isFailed {
+				if isFailed || numRunningContainers == 0 {
 					pod.Status.Phase = core.PodFailed
 					glog.Infof("pod %v failed", pod.Name)
 				} else {
 					pod.Status.Phase = core.PodSucceeded
 					glog.Infof("pod %v succeed", pod.Name)
 				}
+				pod.Status.RunningContainers = numRunningContainers
+				kl.apiClient.UpdatePodStatus(pod)
+			} else if pod.Status.RunningContainers != numRunningContainers {
+				pod.Status.RunningContainers = numRunningContainers
 				kl.apiClient.UpdatePodStatus(pod)
 			}
 		} else {

@@ -297,6 +297,16 @@ func (m *basicController) HandleEvent(event apiserver.Event) {
 		if m.componentManager.PodExistsByName(podName) {
 			err = m.handlePodReady(m.componentManager.GetPodByName(podName))
 		}
+	case apiserver.PodFail:
+		podName := event.(*apiserver.PodFailEvent).PodName
+		pod := m.componentManager.GetPodByName(podName)
+		if pod == nil {
+			glog.Errorf("failed pod does not exist: %v", podName)
+			return
+		}
+		if deployment := m.componentManager.GetDeploymentByPodName(podName); deployment != nil {
+			m.deleteDeploymentPod(deployment, pod)
+		}
 	}
 
 	if err != nil {
@@ -435,7 +445,8 @@ func updateDeploymentStatusOnPodRemoval(deployment *core.Deployment, pod *core.P
 	if isPodUpdated(deployment, pod) {
 		deployment.Status.UpdatedReplicas--
 	}
-	if pod.Status.Phase == core.PodReady {
+	// Failed pods must be Ready previously.
+	if pod.Status.Phase == core.PodReady || pod.Status.Phase == core.PodFailed {
 		deployment.Status.ReadyReplicas--
 	}
 }
