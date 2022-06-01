@@ -11,19 +11,16 @@ import (
 	"p9t.io/kuberboat/pkg/apiserver"
 )
 
-const (
-	MonitorInterval time.Duration = 15 * time.Second
-	// To avoid frequent scaling in and out when the resource usage of a pod is close to the
-	// threshold, the scale-out threshold is slightly increased by multiplying a constant
-	// ScaleOutTargetExpansionRate.
-	ScaleOutTargetExpansionRate float64 = 1.05
-)
+// To avoid frequent scaling in and out when the resource usage of a pod is close to the
+// threshold, the scale-out threshold is slightly increased by multiplying a constant
+// ScaleOutTargetExpansionRate.
+const ScaleOutTargetExpansionRate float64 = 1.05
 
 type Controller interface {
-	// StartMonitor monitors all the ready pods at set intervals.
-	StartMonitor()
 	// CreateAutoscaler creates an autoscaler.
 	CreateAutoscaler(autoscaler *core.HorizontalPodAutoscaler) error
+	// DescribeAutoscalers returns information about autoscalers specified by autoscalerNames.
+	DescribeAutoscalers(all bool, autoscalerNames []string) ([]*core.HorizontalPodAutoscaler, []string)
 }
 
 type basicController struct {
@@ -41,24 +38,18 @@ func NewAutoscalerController(
 	}
 }
 
-func (bc *basicController) StartMonitor() {
-	for range time.Tick(MonitorInterval) {
-		bc.monitorAndScaleAllDeployments()
-	}
-}
-
-func (bc *basicController) monitorAndScaleAllDeployments() {
-	autoscalers := bc.componentManager.ListAutoscalers()
-	for _, autoscaler := range autoscalers {
-		deploymentName := autoscaler.Spec.ScaleTargetRef.Name
+func (bc *basicController) startAutoscalerMonitor(autoscaler *core.HorizontalPodAutoscaler) {
+	deploymentName := autoscaler.Spec.ScaleTargetRef.Name
+	monitorInterval := time.Second * time.Duration(autoscaler.Spec.ScaleInterval)
+	ticker := time.NewTicker(monitorInterval)
+	for range ticker.C {
 		if !bc.componentManager.DeploymentExistsByName(deploymentName) {
 			// Deployment does not exist. Just delete the autoscaler.
 			bc.componentManager.DeleteAutoscalerByName(autoscaler.Name)
-			continue
+			return
 		}
-
 		deployment := bc.componentManager.GetDeploymentByName(deploymentName)
-		go bc.monitorAndScaleDeployment(autoscaler, deployment)
+		bc.monitorAndScaleDeployment(autoscaler, deployment)
 	}
 }
 
@@ -232,6 +223,8 @@ func (bc *basicController) CreateAutoscaler(autoscaler *core.HorizontalPodAutosc
 	deployment := bc.componentManager.GetDeploymentByName(deploymentName)
 	clipDeploymentReplicas(deployment, autoscaler)
 
+	go bc.startAutoscalerMonitor(autoscaler)
+
 	glog.Infof("AUTOSCALER [%v]: autoscaler created on deployment %v", autoscaler.Name, deploymentName)
 
 	return nil
@@ -242,5 +235,30 @@ func clipDeploymentReplicas(deployment *core.Deployment, autoscaler *core.Horizo
 		deployment.Spec.Replicas = autoscaler.Spec.MinReplicas
 	} else if deployment.Spec.Replicas > autoscaler.Spec.MaxReplicas {
 		deployment.Spec.Replicas = autoscaler.Spec.MaxReplicas
+	}
+}
+
+func (bc *basicController) DescribeAutoscalers(all bool, autoscalerNames []string) (
+	[]*core.HorizontalPodAutoscaler,
+	[]string,
+) {
+	if all {
+		return bc.componentManager.ListAutoscalers(), []string{}
+	} else {
+		foundAutoscalers := make([]*core.HorizontalPodAutoscaler, 0)
+		notFoundAutoscalers := make([]string, 0)
+		for _, name := range autoscalerNames {
+			if !bc.componentManager.AutoscalerExistsByName(name) {
+				notFoundAutoscalers = append(notFoundAutoscalers, name)
+			} else {
+				autoscaler := bc.componentManager.GetAutoscalerByName(name)
+				if autoscaler == nil {
+					glog.Errorf("autoscaler missing event if cm claims otherwise")
+					continue
+				}
+				foundAutoscalers = append(foundAutoscalers, autoscaler)
+			}
+		}
+		return foundAutoscalers, notFoundAutoscalers
 	}
 }
