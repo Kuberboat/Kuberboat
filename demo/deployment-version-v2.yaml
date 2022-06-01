@@ -2,7 +2,10 @@ kind: Deployment
 metadata:
   name: deployment-version
 spec:
-  replicas: 4
+  replicas: 8
+  rollingUpdate:
+    maxSurge: 2
+    maxUnavailable: 5
   template:
     metadata:
       labels:
@@ -11,6 +14,6 @@ spec:
     spec:
       containers:
       - name: version_server
-        image: windowsxpbeta/http_server:v1.0
+        image: windowsxpbeta/http_server:v2.0
         ports: 
           - 8080

@@ -9,6 +9,9 @@ spec:
       image: windowsxpbeta/http_server:v1.0
       ports: 
         - 8080
+      commands:
+      - python
+      - /src/server_v1.py
       resources:
         cpu: 1
         memory: 128000000
