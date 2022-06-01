@@ -197,7 +197,7 @@ func (rm *dockerRuntimeManager) DeletePodSandBox(pod *core.Pod) {
 	defer rm.mtx.Unlock()
 	delete(rm.sandBoxByPod, pod)
 	go func() {
-		if err := kuberetcd.Delete(fmt.Sprintf("/Kubelet/Runtime/%v/SandBox", pod.Name)); err != nil {
+		if err := kuberetcd.Delete(fmt.Sprintf("/Kubelet/Runtime/%v/Sandbox", pod.Name)); err != nil {
 			glog.Errorf("delete pod pause container error: %v", err)
 		}
 	}()
