@@ -2,10 +2,13 @@ package apiserver
 
 import (
 	"container/list"
+	"fmt"
 	"sync"
 
+	"github.com/golang/glog"
 	"p9t.io/kuberboat/pkg/api"
 	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/apiserver/etcd"
 )
 
 // ComponentManager serves as a cache for pods, services and deployments of the cluster in
@@ -301,6 +304,9 @@ func (cm *componentManagerInner) AddPodToService(serviceName string, pod *core.P
 	cm.mtx.Lock()
 	defer cm.mtx.Unlock()
 	cm.servicesToPods[serviceName].PushBack(pod)
+	if err := etcd.Put(fmt.Sprintf("/Services/Pods/%s", serviceName), core.GetPodNames(cm.servicesToPods[serviceName])); err != nil {
+		glog.Errorf("persist service's pods error: %v", err)
+	}
 }
 
 func (cm *componentManagerInner) GetServiceByName(name string) *core.Service {

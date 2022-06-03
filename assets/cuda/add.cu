@@ -14,7 +14,7 @@ __global__ void mat_add(int *mat1, int *mat2, int *result) {
   const int row = bid * THREAD_NUM + tid;
   for (int i = 0; i < R_SIZE; i++) {
     int index = row * R_SIZE + i;
-    result[index] = mat1[index] * mat2[index];
+    result[index] = mat1[index] + mat2[index];
   }
 }
 

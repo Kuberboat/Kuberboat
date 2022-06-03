@@ -2,10 +2,12 @@ package pod
 
 import (
 	"encoding/json"
+	"fmt"
 	"sync"
 
 	"github.com/golang/glog"
 	"p9t.io/kuberboat/pkg/api/core"
+	kuberetcd "p9t.io/kuberboat/pkg/apiserver/etcd"
 )
 
 // MetaManager defines public methods of a pod metadata manager.
@@ -17,7 +19,7 @@ type MetaManager interface {
 	PodByName(name string) (*core.Pod, bool)
 	// AddPod adds the given pod to the manager.
 	// Assumes the pod being added is always new.
-	AddPod(pod *core.Pod)
+	AddPod(pod *core.Pod, isRecover bool)
 	// DeletePodByName deletes the given pod indexed by name from the manager.
 	// Assumes the pod being deleted always exists.
 	DeletePodByName(name string)
@@ -55,7 +57,7 @@ func (pm *basicManager) PodByName(name string) (*core.Pod, bool) {
 	return pod, ok
 }
 
-func (pm *basicManager) AddPod(pod *core.Pod) {
+func (pm *basicManager) AddPod(pod *core.Pod, isRecover bool) {
 	pm.mtx.Lock()
 	defer pm.mtx.Unlock()
 	if _, ok := pm.podByName[pod.Name]; ok {
@@ -63,6 +65,13 @@ func (pm *basicManager) AddPod(pod *core.Pod) {
 		return
 	}
 	pm.podByName[pod.Name] = pod
+	if !isRecover {
+		go func() {
+			if err := kuberetcd.Put(fmt.Sprintf("/Kubelet/Pod/%v", pod.Name), pod); err != nil {
+				glog.Errorf("persist pod error: %v", err)
+			}
+		}()
+	}
 }
 
 func (pm *basicManager) DeletePodByName(name string) {
@@ -73,20 +82,30 @@ func (pm *basicManager) DeletePodByName(name string) {
 		return
 	}
 	delete(pm.podByName, name)
+	go func() {
+		if err := kuberetcd.Delete(fmt.Sprintf("/Kubelet/Pod/%v", name)); err != nil {
+			glog.Errorf("delete pod error: %v", err)
+		}
+	}()
 }
 
 // RuntimeManager manages the container runtime resources that a pod uses.
 type RuntimeManager interface {
 	// AddPodContainer records a container as a member of a pod.
 	AddPodContainer(pod *core.Pod, name string)
+	// AddPosContainers records set the container array for a pod.
+	// Only for recovery.
+	AddPodContainers(pod *core.Pod, names []string)
 	// AddPodSandBox records the pod's pause container ID.
-	AddPodSandBox(pod *core.Pod, name string)
+	AddPodSandBox(pod *core.Pod, name string, isRecover bool)
 	// AddPodVolume records a volume as being used by a pod.
 	AddPodVolume(pod *core.Pod, name string)
 	// DeletePodContaiers removes all containers belonging to a pod.
 	DeletePodContainers(pod *core.Pod)
 	// DeletePodVolumes removes all volumes belonging to a pod.
 	DeletePodVolumes(pod *core.Pod)
+	// DeleteSandBox removes pod's pause container ID.
+	DeletePodSandBox(pod *core.Pod)
 	// ContainersByPod returns all the containers created by a pod.
 	ContainersByPod(pod *core.Pod) ([]string, bool)
 	// SandBoxByPod returns the pause container ID of the pod.
@@ -124,13 +143,32 @@ func (rm *dockerRuntimeManager) AddPodContainer(pod *core.Pod, name string) {
 	rm.mtx.Lock()
 	defer rm.mtx.Unlock()
 	rm.containersByPod[pod] = append(rm.containersByPod[pod], name)
+	go func() {
+		if err := kuberetcd.Put(fmt.Sprintf("/Kubelet/Runtime/%v/Containers", pod.Name), rm.containersByPod[pod]); err != nil {
+			glog.Errorf("persist pod runtime error: %v", err)
+		}
+	}()
 }
 
-func (rm *dockerRuntimeManager) AddPodSandBox(pod *core.Pod, name string) {
+func (rm *dockerRuntimeManager) AddPodContainers(pod *core.Pod, names []string) {
+	rm.mtx.Lock()
+	defer rm.mtx.Unlock()
+	rm.containersByPod[pod] = names
+}
+
+func (rm *dockerRuntimeManager) AddPodSandBox(pod *core.Pod, name string, isRecover bool) {
 	rm.mtx.Lock()
 	defer rm.mtx.Unlock()
 	rm.sandBoxByPod[pod] = name
+	if !isRecover {
+		go func() {
+			if err := kuberetcd.Put(fmt.Sprintf("/Kubelet/Runtime/%v/Sandbox", pod.Name), name); err != nil {
+				glog.Errorf("persist pod sandbox error: %v", err)
+			}
+		}()
+	}
 }
+
 func (rm *dockerRuntimeManager) AddPodVolume(pod *core.Pod, name string) {
 	rm.mtx.Lock()
 	defer rm.mtx.Unlock()
@@ -141,12 +179,28 @@ func (rm *dockerRuntimeManager) DeletePodContainers(pod *core.Pod) {
 	rm.mtx.Lock()
 	defer rm.mtx.Unlock()
 	delete(rm.containersByPod, pod)
+	go func() {
+		if err := kuberetcd.Delete(fmt.Sprintf("/Kubelet/Runtime/%v/Containers", pod.Name)); err != nil {
+			glog.Errorf("delete pod containers error: %v", err)
+		}
+	}()
 }
 
 func (rm *dockerRuntimeManager) DeletePodVolumes(pod *core.Pod) {
 	rm.mtx.Lock()
 	defer rm.mtx.Unlock()
 	delete(rm.volumesByPod, pod)
+}
+
+func (rm *dockerRuntimeManager) DeletePodSandBox(pod *core.Pod) {
+	rm.mtx.Lock()
+	defer rm.mtx.Unlock()
+	delete(rm.sandBoxByPod, pod)
+	go func() {
+		if err := kuberetcd.Delete(fmt.Sprintf("/Kubelet/Runtime/%v/Sandbox", pod.Name)); err != nil {
+			glog.Errorf("delete pod pause container error: %v", err)
+		}
+	}()
 }
 
 func (rm *dockerRuntimeManager) ContainersByPod(pod *core.Pod) ([]string, bool) {

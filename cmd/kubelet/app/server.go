@@ -12,8 +12,10 @@ import (
 	"google.golang.org/grpc"
 	"p9t.io/kuberboat/pkg/api/core"
 	kubeerror "p9t.io/kuberboat/pkg/api/error"
+	"p9t.io/kuberboat/pkg/apiserver/etcd"
 	kl "p9t.io/kuberboat/pkg/kubelet"
 	"p9t.io/kuberboat/pkg/kubelet/pod"
+	"p9t.io/kuberboat/pkg/kubelet/recover"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
@@ -120,11 +122,17 @@ func (s *server) DeletePodFromServices(ctx context.Context, req *pb.KubeletUpdat
 	return &pb.DefaultResponse{Status: 0}, nil
 }
 
-func StartServer() {
+func StartServer(etcdServers string) {
+	if err := etcd.InitializeClient(etcdServers); err != nil {
+		glog.Fatal(err)
+	}
 	podMetaManager = pod.NewMetaManager()
 	kubelet = kl.NewKubelet(podMetaManager)
 	kubeProxy = kl.NewKubeProxy(podMetaManager)
-
+	podMetaManager, runtimeManager := kubelet.GetManager()
+	if err := recover.Recover(podMetaManager, runtimeManager, kubeProxy.GetMetaManager()); err != nil {
+		glog.Fatal(err)
+	}
 	grpcServer := grpc.NewServer()
 	pb.RegisterKubeletApiServerServiceServer(grpcServer, &server{})
 
