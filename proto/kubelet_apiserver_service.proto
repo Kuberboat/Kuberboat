@@ -19,7 +19,8 @@ message KubeletDeletePodRequest {
 }
 
 message KubeletTransferFileRequest {
-    bytes file = 1;
+    string file_type = 1;
+    bytes file = 2;
 }
 
 message KubeletGetPodLogRequest {

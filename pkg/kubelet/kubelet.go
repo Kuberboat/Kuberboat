@@ -509,7 +509,7 @@ func (kl *dockerKubelet) StartCAdvisor() error {
 		ExposedPorts: dockernat.PortSet{
 			exposedPort: struct{}{},
 		},
-		Cmd: strslice.StrSlice{"--max_housekeeping_interval=5s"},
+		Cmd: strslice.StrSlice{"--max_housekeeping_interval=2s"},
 	}, &dockercontainer.HostConfig{
 		Binds:      vBinds,
 		Privileged: true,

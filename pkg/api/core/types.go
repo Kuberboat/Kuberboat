@@ -407,6 +407,9 @@ type AutoscalerSpec struct {
 	MinReplicas uint32 `yaml:"minReplicas"`
 	// MaxReplicas is the maximal replica number of the pods in target object.
 	MaxReplicas uint32 `yaml:"maxReplicas"`
+	// ScaleInterval is the interval at which an autoscaler scales in seconds.
+	// The minimum is 12s.
+	ScaleInterval int64 `yaml:"scaleInterval"`
 	// Metrics is the metrics that autoscaler needs to monitor on. Only CPU and memory
 	// are supported.
 	Metrics []Metric

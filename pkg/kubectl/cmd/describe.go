@@ -63,6 +63,10 @@ Examples:
 			describeDNSs(nil)
 		case "nodes":
 			describeNodes()
+		case "autoscaler":
+			describeAutoscalers(args[1:])
+		case "autoscalers":
+			describeAutoscalers(nil)
 		default:
 			log.Fatalf("%v is not a supported resource type", resourceType)
 		}
@@ -263,4 +267,39 @@ func describeNodes() {
 		log.Fatal(err)
 	}
 	fmt.Println(string(prettyjson))
+}
+
+func describeAutoscalers(autoscalerNames []string) {
+	client := client.NewCtlClient()
+	var resp *pb.DescribeAutoscalersResponse
+	var err error
+	if autoscalerNames == nil {
+		resp, err = client.DescribeAutoscalers(true, nil)
+	} else {
+		resp, err = client.DescribeAutoscalers(false, autoscalerNames)
+	}
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var foundAutoscalers []*core.HorizontalPodAutoscaler
+	var notFoundAutoscalers []string
+	err = json.Unmarshal(resp.Autoscalers, &foundAutoscalers)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	prettyjson, err := json.MarshalIndent(foundAutoscalers, "", "  ")
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println(string(prettyjson))
+	if resp.Status == -2 {
+		err = json.Unmarshal(resp.NotFoundAutoscalers, &notFoundAutoscalers)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Printf("The following pods are not found: %v\n", notFoundAutoscalers)
+	}
 }

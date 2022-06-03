@@ -358,6 +358,43 @@ func (*server) DescribeNodes(ctx context.Context, req *pb.EmptyRequest) (*pb.Des
 	return &pb.DescribeNodesResponse{Status: 0, Nodes: data}, nil
 }
 
+func (*server) DescribeAutoscalers(ctx context.Context, req *pb.DescribeAutoscalersRequest) (
+	*pb.DescribeAutoscalersResponse,
+	error,
+) {
+	foundAutoscalers, notFoundAutoscalers := autoscalerController.DescribeAutoscalers(req.All, req.AutoscalerNames)
+	foundPodsData, err := json.Marshal(foundAutoscalers)
+	if err != nil {
+		return &pb.DescribeAutoscalersResponse{
+			Status:              -1,
+			Autoscalers:         nil,
+			NotFoundAutoscalers: nil,
+		}, err
+	}
+
+	notFoundPodsData, err := json.Marshal(notFoundAutoscalers)
+	if err != nil {
+		return &pb.DescribeAutoscalersResponse{
+			Status:              -1,
+			Autoscalers:         nil,
+			NotFoundAutoscalers: nil,
+		}, err
+	}
+
+	var status int32
+	if len(notFoundAutoscalers) > 0 {
+		status = -2
+	} else {
+		status = 0
+	}
+
+	return &pb.DescribeAutoscalersResponse{
+		Status:              status,
+		Autoscalers:         foundPodsData,
+		NotFoundAutoscalers: notFoundPodsData,
+	}, nil
+}
+
 func StartServer(etcdServers string) {
 	if err := etcd.InitializeClient(etcdServers); err != nil {
 		glog.Fatal(err)
@@ -378,8 +415,6 @@ func StartServer(etcdServers string) {
 	if err := recover.Recover(&nodeManager, &componentManager, serviceController); err != nil {
 		glog.Fatal(err)
 	}
-
-	go autoscalerController.StartMonitor()
 
 	lis, err := net.Listen("tcp", fmt.Sprintf(":%d", core.APISERVER_PORT))
 	if err != nil {
