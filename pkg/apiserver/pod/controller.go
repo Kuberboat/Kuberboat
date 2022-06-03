@@ -109,8 +109,17 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 		cudaFile, err := os.ReadFile("/tmp/cuda/cuda.cu")
 		if err != nil {
 			glog.Errorf("read cuda file from host error: %v", err.Error())
+			return err
 		}
-		if _, err := client.TransferFile(cudaFile); err != nil {
+		if _, err := client.TransferFile("cuda.cu", cudaFile); err != nil {
+			return err
+		}
+		makeFile, err := os.ReadFile("/tmp/cuda/Makefile")
+		if err != nil {
+			glog.Errorf("read makefile from host error: %v", err)
+			return err
+		}
+		if _, err := client.TransferFile("Makefile", makeFile); err != nil {
 			return err
 		}
 	}
