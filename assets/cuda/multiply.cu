@@ -1,7 +1,6 @@
 #include <cuda.h>
 #include <cuda_runtime.h>
 #include <stdio.h>
-#include <string.h>
 
 #define BLOCK_NUM 8    //块数量
 #define THREAD_NUM 64  // 每个块中的线程数
@@ -29,13 +28,11 @@ int main(int argc, char *argv[]) {
   mat2 = (int *)malloc(M_SIZE * sizeof(int));
   result = (int *)malloc(M_SIZE * sizeof(int));
 
-  // initialize origin mat1
+  // initialize
   for (int i = 0; i < M_SIZE; i++) {
     mat1[i] = rand() / 1000000;
+    mat2[i] = rand() / 1000000;
     result[i] = 0;
-  }
-  for (int i = 0; i < R_SIZE; i++) {
-    mat2[i * (R_SIZE + 1)] = 2;
   }
 
   cudaMalloc((void **)&g_mat1, sizeof(int) * M_SIZE);

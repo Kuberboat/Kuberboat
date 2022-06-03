@@ -62,8 +62,6 @@ type Kubelet interface {
 	StartCAdvisor() error
 	// GetPodLog gets the logs of pod's container.
 	GetPodLog(ctx context.Context, podName string) string
-	// GetManager returns podMetaManager and podRuntimeManager for recovery purpose.
-	GetManager() (kubeletpod.MetaManager, kubeletpod.RuntimeManager)
 	// MonitorPods checks the status of each pod.
 	// The rule is that if all the containers except pause is down then the Pod is down.
 	monitorPods()
@@ -103,10 +101,6 @@ func NewKubelet(podMetaManager kubeletpod.MetaManager) Kubelet {
 		}
 	}()
 	return kubelet
-}
-
-func (kl *dockerKubelet) GetManager() (kubeletpod.MetaManager, kubeletpod.RuntimeManager) {
-	return kl.podMetaManager, kl.podRuntimeManager
 }
 
 func (kl *dockerKubelet) ConnectToServer(apiserverStatus *core.ApiserverStatus) error {
@@ -241,7 +235,7 @@ func (kl *dockerKubelet) AddPod(ctx context.Context, pod *core.Pod) error {
 
 	// Update pod status as Running.
 	// Note that running does not mean ready.
-	kl.podMetaManager.AddPod(pod, false)
+	kl.podMetaManager.AddPod(pod)
 	// TODO: Defer broadcasting condition variable. CV and mtx should be a member of the kubelet.
 
 	// Start sandbox pause container. If sandbox container fails to start, then no other container
@@ -312,7 +306,7 @@ func (kl *dockerKubelet) runPodSandBox(ctx context.Context, pod *core.Pod) error
 	if err != nil {
 		return err
 	}
-	kl.podRuntimeManager.AddPodSandBox(pod, resp.ID, false)
+	kl.podRuntimeManager.AddPodSandBox(pod, resp.ID)
 
 	// Start pause container.
 	if err := cli.ContainerStart(ctx, resp.ID, dockertypes.ContainerStartOptions{}); err != nil {
@@ -461,7 +455,7 @@ func (kl *dockerKubelet) DeletePodByName(ctx context.Context, name string) (err 
 			return err
 		}
 	}
-	kl.podRuntimeManager.DeletePodSandBox(pod)
+
 	kl.podRuntimeManager.DeletePodContainers(pod)
 
 	// Remove volumes.

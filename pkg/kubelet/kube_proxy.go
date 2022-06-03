@@ -11,7 +11,6 @@ import (
 	"p9t.io/kuberboat/pkg/api/core"
 	kubeletpod "p9t.io/kuberboat/pkg/kubelet/pod"
 	kubeproxy "p9t.io/kuberboat/pkg/kubelet/proxy"
-	"p9t.io/kuberboat/pkg/kubelet/proxy/types"
 )
 
 const (
@@ -32,8 +31,6 @@ type KubeProxy interface {
 	AddPodToServices(serviceNames []string, podName string, podIP string) error
 	// DeletePodFromService deletes a pod from an existing service by rewriting all the rules.
 	DeletePodFromServices(serviceNames []string, podName string) error
-	// GetMetaManager returns the serviceMetaManager of inner kubeProxyInner for recovery
-	GetMetaManager() kubeproxy.MetaManager
 }
 
 type kubeProxyInner struct {
@@ -75,10 +72,6 @@ func NewKubeProxy(podMetaManager kubeletpod.MetaManager) KubeProxy {
 	}
 }
 
-func (kp *kubeProxyInner) GetMetaManager() kubeproxy.MetaManager {
-	return kp.serviceMetaManager
-}
-
 func (kp *kubeProxyInner) CreateService(
 	serviceName string,
 	clusterIP string,
@@ -118,26 +111,26 @@ func (kp *kubeProxyInner) CreateService(
 			}
 
 			// Update metadata.
-			podChain := types.PodChain{
+			podChain := kubeproxy.PodChain{
 				ChainName: podChainName,
 				PodName:   podName,
 				PodIP:     podIP,
 			}
-			kp.serviceMetaManager.AddPodChain(serviceChainName, &podChain, false)
+			kp.serviceMetaManager.AddPodChain(serviceChainName, &podChain)
 		}
 
 		// Add a rule that jumps to the service chain when the destination of a packet is <clusterIP>:<port>.
 		kp.iptablesClient.ApplyServiceChain(serviceName, clusterIP, serviceChainName, servicePort.Port)
 
 		// Update metadata.
-		serviceChain := types.ServiceChain{
+		serviceChain := kubeproxy.ServiceChain{
 			ChainName:   serviceChainName,
 			ServicePort: servicePort,
 		}
-		kp.serviceMetaManager.AddServiceChain(serviceName, &serviceChain, false)
+		kp.serviceMetaManager.AddServiceChain(serviceName, &serviceChain)
 	}
 
-	kp.serviceMetaManager.AddServiceClusterIP(serviceName, clusterIP, false)
+	kp.serviceMetaManager.AddServiceClusterIP(serviceName, clusterIP)
 
 	return nil
 }
@@ -224,12 +217,12 @@ func (kp *kubeProxyInner) AddPodToServices(serviceNames []string, podName string
 			}
 
 			// Update metadata.
-			podChain := types.PodChain{
+			podChain := kubeproxy.PodChain{
 				ChainName: podChainName,
 				PodName:   podName,
 				PodIP:     podIP,
 			}
-			kp.serviceMetaManager.AddPodChain(serviceChain.ChainName, &podChain, false)
+			kp.serviceMetaManager.AddPodChain(serviceChain.ChainName, &podChain)
 		}
 	}
 
