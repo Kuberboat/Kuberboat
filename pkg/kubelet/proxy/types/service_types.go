@@ -1,6 +1,12 @@
-package proxy
+package types
 
 import "p9t.io/kuberboat/pkg/api/core"
+
+// ServiceNameWithClusterIP is the struct a service is stored in etcd.
+type ServiceNameWithClusterIP struct {
+	ServiceName string
+	ClusterIP   string
+}
 
 // PodChain contains the name of an iptables chain for a pod, as well as pod name and pod IP.
 type PodChain struct {
