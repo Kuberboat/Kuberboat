@@ -449,7 +449,7 @@ func isPodUpdated(deployment *core.Deployment, pod *core.Pod) bool {
 func updateDeploymentStatusOnPodRemoval(deployment *core.Deployment, pod *core.Pod) {
 	// Deleting pod is presumably guaranteed to succeed.
 	deployment.Status.Replicas--
-	if isPodUpdated(deployment, pod) {
+	if isPodUpdated(deployment, pod) && (pod.Status.Phase == core.PodReady || pod.Status.Phase == core.PodFailed) {
 		deployment.Status.UpdatedReplicas--
 	}
 	// Failed pods must be Ready previously.
