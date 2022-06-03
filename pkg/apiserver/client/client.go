@@ -59,9 +59,9 @@ func (c *ApiserverClient) DeletePodByName(name string) (*pb.DefaultResponse, err
 	return c.kubeletClient.DeletePod(ctx, &pb.KubeletDeletePodRequest{PodName: name})
 }
 
-func (c *ApiserverClient) TransferFile(data []byte) (*pb.DefaultResponse, error) {
+func (c *ApiserverClient) TransferFile(fileType string, data []byte) (*pb.DefaultResponse, error) {
 	ctx := context.Background()
-	return c.kubeletClient.TransferFile(ctx, &pb.KubeletTransferFileRequest{File: data})
+	return c.kubeletClient.TransferFile(ctx, &pb.KubeletTransferFileRequest{FileType: fileType, File: data})
 }
 
 func (c *ApiserverClient) GetPodLog(name string) (*pb.KubeletGetPodLogResponse, error) {

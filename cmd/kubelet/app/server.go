@@ -62,7 +62,7 @@ func (s *server) TransferFile(ctx context.Context, req *pb.KubeletTransferFileRe
 		if err := os.MkdirAll("/tmp/cuda", 0777); err != nil {
 			glog.Fatalf("failed to create cuda dir: %v", err.Error())
 		}
-		if err := os.WriteFile("/tmp/cuda/cuda.cu", req.File, 0777); err != nil {
+		if err := os.WriteFile(fmt.Sprintf("/tmp/cuda/%v", req.FileType), req.File, 0777); err != nil {
 			glog.Fatalf("failed to write cuda file: %v", err.Error())
 		}
 	}()
