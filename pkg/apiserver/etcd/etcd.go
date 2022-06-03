@@ -11,7 +11,6 @@ import (
 
 	clientv3 "go.etcd.io/etcd/client/v3"
 	"p9t.io/kuberboat/pkg/api/core"
-	"p9t.io/kuberboat/pkg/kubelet/proxy/types"
 )
 
 const (
@@ -94,35 +93,6 @@ func Get(key string, valueType interface{}, opts ...clientv3.OpOption) ([]interf
 			}
 			values = append(values, buffer)
 		}
-		return values, nil
-	case types.ServiceNameWithClusterIP:
-		for _, kv := range resp.Kvs {
-			buffer := valueType
-			if err = json.Unmarshal(kv.Value, &buffer); err != nil {
-				return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
-			}
-			values = append(values, buffer)
-		}
-		return values, nil
-	case []types.ServiceChain:
-		if len(resp.Kvs) != 1 {
-			return values, fmt.Errorf("one service should have only 1 service chain array, now it has %v", len(resp.Kvs))
-		}
-		kv := resp.Kvs[0]
-		if err = json.Unmarshal(kv.Value, &valueType); err != nil {
-			return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
-		}
-		values = append(values, valueType)
-		return values, nil
-	case []types.PodChain:
-		if len(resp.Kvs) < 1 {
-			return values, nil
-		}
-		kv := resp.Kvs[0]
-		if err = json.Unmarshal(kv.Value, &valueType); err != nil {
-			return nil, fmt.Errorf("error unmarshalling data in etcd: %v", err)
-		}
-		values = append(values, valueType)
 		return values, nil
 	case net.IP:
 		for _, kv := range resp.Kvs {

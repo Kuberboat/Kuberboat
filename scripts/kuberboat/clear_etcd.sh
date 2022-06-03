@@ -5,7 +5,7 @@ if [ -z $(pgrep etcd) ]; then
 	exit 0
 fi
 
-api_objects=("/Pods" "/Deployments" "/Services" "/Nodes" "/IPAssigner" "/Kubelet" "/Kubeproxy")
+api_objects=("/Pods" "/Deployments" "/Services" "/Nodes" "/IPAssigner")
 
 echo "clearing etcd"
 etcdctl version &>/dev/null
