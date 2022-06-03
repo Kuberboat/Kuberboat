@@ -65,13 +65,13 @@ func (pm *basicManager) AddPod(pod *core.Pod, isRecover bool) {
 		return
 	}
 	pm.podByName[pod.Name] = pod
-	go func() {
-		if !isRecover {
+	if !isRecover {
+		go func() {
 			if err := kuberetcd.Put(fmt.Sprintf("/Kubelet/Pod/%v", pod.Name), pod); err != nil {
 				glog.Errorf("persist pod error: %v", err)
 			}
-		}
-	}()
+		}()
+	}
 }
 
 func (pm *basicManager) DeletePodByName(name string) {
