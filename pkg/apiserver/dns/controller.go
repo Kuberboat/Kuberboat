@@ -66,7 +66,7 @@ func NewDNSController(componentManager apiserver.ComponentManager) Controller {
 	if net.ParseIP(nginxIP) == nil {
 		glog.Errorf("got invalid nginx IP from etcd: %v, DNS might not work", nginxIP)
 	} else {
-		glog.Infof("got nginx IP: %v", nginxIP)
+		glog.Infof("DNS: got nginx IP %v", nginxIP)
 	}
 	homedir, err := os.UserHomeDir()
 	if err != nil {
@@ -172,6 +172,8 @@ func (c *basicController) CreateDNS(newDNS *core.DNS) error {
 	// Update metadata.
 	newDNS.Status.Applied = true
 	c.componentManager.SetDNS(newDNS)
+
+	glog.Infof("DNS [%v]: dns created", newDNS.Name)
 
 	return nil
 }

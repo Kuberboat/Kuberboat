@@ -86,7 +86,7 @@ type dockerKubelet struct {
 }
 
 // newKubelet creates a new Kubelet object.
-func NewKubelet() Kubelet {
+func NewKubelet(podMetaManager kubeletpod.MetaManager) Kubelet {
 	// Create docker client.
 	cli, err := dockerclient.NewClientWithOpts(dockerclient.FromEnv, dockerclient.WithAPIVersionNegotiation())
 	if err != nil {
@@ -94,7 +94,7 @@ func NewKubelet() Kubelet {
 	}
 	kubelet := &dockerKubelet{
 		dockerClient:      cli,
-		podMetaManager:    kubeletpod.NewMetaManager(),
+		podMetaManager:    podMetaManager,
 		podRuntimeManager: kubeletpod.NewRuntimeManager(),
 	}
 	go func() {
@@ -515,7 +515,7 @@ func (kl *dockerKubelet) StartCAdvisor() error {
 		ExposedPorts: dockernat.PortSet{
 			exposedPort: struct{}{},
 		},
-		Cmd: strslice.StrSlice{"--max_housekeeping_interval=5s"},
+		Cmd: strslice.StrSlice{"--max_housekeeping_interval=2s"},
 	}, &dockercontainer.HostConfig{
 		Binds:      vBinds,
 		Privileged: true,
@@ -583,6 +583,7 @@ func (kl *dockerKubelet) monitorPods() {
 		if ok {
 			isFinished := true
 			isFailed := false
+			numRunningContainers := 0
 			// first check if all the containers are created
 			if len(containerIds) != len(pod.Spec.Containers) && pod.Status.Phase == core.PodReady {
 				isFailed = true
@@ -596,6 +597,7 @@ func (kl *dockerKubelet) monitorPods() {
 					})
 					if err != nil {
 						glog.Errorf("fail to query container %v's status: %v", containerId, err)
+						continue
 					}
 					container := containers[0]
 					switch container.State {
@@ -611,21 +613,23 @@ func (kl *dockerKubelet) monitorPods() {
 					case "dead":
 						isFailed = true
 					default:
+						numRunningContainers++
 						isFinished = false
-					}
-					if !isFinished {
-						break
 					}
 				}
 			}
 			if isFinished {
-				if isFailed {
+				if isFailed || numRunningContainers == 0 {
 					pod.Status.Phase = core.PodFailed
 					glog.Infof("pod %v failed", pod.Name)
 				} else {
 					pod.Status.Phase = core.PodSucceeded
 					glog.Infof("pod %v succeed", pod.Name)
 				}
+				pod.Status.RunningContainers = numRunningContainers
+				kl.apiClient.UpdatePodStatus(pod)
+			} else if pod.Status.RunningContainers != numRunningContainers {
+				pod.Status.RunningContainers = numRunningContainers
 				kl.apiClient.UpdatePodStatus(pod)
 			}
 		} else {

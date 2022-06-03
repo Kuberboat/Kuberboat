@@ -119,6 +119,7 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	pod.CreationTimestamp = time.Now()
 	pod.Status.Phase = core.PodPending
 	pod.Status.HostIP = node.Status.Address
+	pod.Status.RunningContainers = 0
 
 	if err := etcd.Put(fmt.Sprintf("/Pods/%s", pod.Name), pod); err != nil {
 		return err
@@ -130,7 +131,7 @@ func (c *basicController) CreatePod(pod *core.Pod) error {
 	}
 
 	glog.Infof(
-		"POD [%v]: create pod on node with IP %v",
+		"POD [%v]: pod created on node with IP %v",
 		pod.Name,
 		pod.Status.HostIP,
 	)

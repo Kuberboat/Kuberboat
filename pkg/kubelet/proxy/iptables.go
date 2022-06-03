@@ -13,42 +13,50 @@ const (
 	NatTableName string = "nat"
 	TCPProtocol  string = "tcp"
 
-	PreroutingChainName           string = "PREROUTING"
-	PostroutingChainName          string = "POSTROUTING"
-	KuberboatServicesChainName    string = "KUBERBOAT-SERVICES"
-	KuberboatPostroutingChainName string = "KUBERBOAT-POSTROUTING"
-	KuberboatMarkChainName        string = "KUBERBOAT-MARK-MASQ"
-	KuberboatServiceChainPrefix   string = "KUBERBOAT-SVC-"
-	KuberboatPodChainPrefix       string = "KUBERBOAT-SEP-"
-	DNatChainName                 string = "DNAT"
-	MasqueradeTargetName          string = "MASQUERADE"
-	MarkTargetName                string = "MARK"
-	ReturnTargetName              string = "RETURN"
+	PreroutingChainName               string = "PREROUTING"
+	OutputChainName                   string = "OUTPUT"
+	PostroutingChainName              string = "POSTROUTING"
+	KuberboatServicesChainName        string = "KUBERBOAT-SERVICES"
+	KuberboatPostroutingChainName     string = "KUBERBOAT-POSTROUTING"
+	KuberboatHostPostroutingChainName string = "KUBERBOAT-HOST-POSTROUTING"
+	KuberboatMarkChainName            string = "KUBERBOAT-MARK-MASQ"
+	KuberboatHostMarkChainName        string = "KUBERBOAT-HOST-MARK-MASQ"
+	KuberboatServiceChainPrefix       string = "KUBERBOAT-SVC-"
+	KuberboatPodChainPrefix           string = "KUBERBOAT-SEP-"
+	DNatChainName                     string = "DNAT"
+	SNatChainName                     string = "SNAT"
+	MasqueradeTargetName              string = "MASQUERADE"
+	MarkTargetName                    string = "MARK"
+	ReturnTargetName                  string = "RETURN"
 
-	AppendFlag           string = "-A"
-	DestinationFlag      string = "-d"
-	SourceFlag           string = "-s"
-	JumpFlag             string = "-j"
-	ProtocolFlag         string = "-p"
-	MatchFlag            string = "-m"
-	MatchParamComment    string = "comment"
-	CommentFlag          string = "--comment"
-	MatchParamMark       string = "mark"
-	MarkFlag             string = "--mark"
-	KuberboatMarkParam   string = "0x10000/0x10000"
-	MatchParamStatistic  string = "statistic"
-	ModeFlag             string = "--mode"
-	ModeParamNth         string = "nth"
-	EveryFlag            string = "--every"
-	PacketFlag           string = "--packet"
-	PacketParamZero      string = "0"
-	DNatDestinationFlag  string = "--to-destination"
-	DestinationPortFlag  string = "--dport"
-	RandomFullyFlag      string = "--random-fully"
-	SetXMarkFlag         string = "--set-xmark"
-	KuberboatXMarkParam1 string = "0x10000/0"
-	KuberboatXMarkParam2 string = "0x10000/0x10000"
-	MatchParamNot        string = "!"
+	AppendFlag             string = "-A"
+	DestinationFlag        string = "-d"
+	SourceFlag             string = "-s"
+	JumpFlag               string = "-j"
+	ProtocolFlag           string = "-p"
+	MatchFlag              string = "-m"
+	MatchParamComment      string = "comment"
+	CommentFlag            string = "--comment"
+	MatchParamMark         string = "mark"
+	MarkFlag               string = "--mark"
+	KuberboatMarkParam     string = "0x10000/0x10000"
+	KuberboatHostMarkParam string = "0x8000/0x8000"
+	MatchParamStatistic    string = "statistic"
+	ModeFlag               string = "--mode"
+	ModeParamNth           string = "nth"
+	EveryFlag              string = "--every"
+	PacketFlag             string = "--packet"
+	PacketParamZero        string = "0"
+	DNatDestinationFlag    string = "--to-destination"
+	SNatDestinationFlag    string = "--to-source"
+	DestinationPortFlag    string = "--dport"
+	RandomFullyFlag        string = "--random-fully"
+	SetXMarkFlag           string = "--set-xmark"
+	KuberboatXMarkParam1   string = "0x10000/0"
+	KuberboatXMarkParam2   string = "0x10000/0x10000"
+	KuberboatXMarkParam3   string = "0x8000/0"
+	KuberboatXMarkParam4   string = "0x8000/0x8000"
+	MatchParamNot          string = "!"
 )
 
 // IPTablesClient provides APIs to manage kernel iptables for service.
@@ -62,8 +70,8 @@ type IPTablesClient interface {
 	ApplyServiceChain(serviceName string, clusterIP string, serviceChainName string, port uint16) error
 	// CreatePodChain creates an iptables chain for a pod in one service port mapping.
 	CreatePodChain() string
-	// ApplyPodChainRules adds a jump-to-mark rule and a DNAT rule to a pod chain.
-	ApplyPodChainRules(podChainName string, podIP string, targetPort uint16) error
+	// ApplyPodChainRules adds jump-to-mark rules and a DNAT rule to a pod chain.
+	ApplyPodChainRules(podChainName string, podIP string, targetPort uint16, sameHost bool) error
 	// ApplyPodChain inserts a rule to KUBERBOAT-SVC-<serviceChainID> chain, jumping to a chain for pod.
 	// num is the sequence number of this pod in the service, used for round robin.
 	ApplyPodChain(serviceName string, serviceChainName string, podName string, podChainName string, num int) error
@@ -76,16 +84,26 @@ type IPTablesClient interface {
 }
 
 type iptablesClientInner struct {
-	iptables *iptables.IPTables
+	hostINetIP string
+	flannelIP  string
+	iptables   *iptables.IPTables
 }
 
-func NewIptablesClient() (IPTablesClient, error) {
+func NewIptablesClient(hostINetIP string, flannelIP string) (IPTablesClient, error) {
 	iptables, err := iptables.New(iptables.IPFamily(iptables.ProtocolIPv4))
 	if err != nil {
 		return nil, err
 	}
+	if ip := net.ParseIP(hostINetIP); ip == nil {
+		return nil, fmt.Errorf("invalid host inet ip %s", hostINetIP)
+	}
+	if ip := net.ParseIP(flannelIP); ip == nil {
+		return nil, fmt.Errorf("invalid flannel ip %s", flannelIP)
+	}
 	return &iptablesClientInner{
-		iptables: iptables,
+		hostINetIP: hostINetIP,
+		flannelIP:  flannelIP,
+		iptables:   iptables,
 	}, nil
 }
 
@@ -111,6 +129,35 @@ func (ic *iptablesClientInner) InitServiceIPTables() error {
 		err = ic.iptables.Insert(
 			NatTableName,
 			PreroutingChainName,
+			1,
+			JumpFlag,
+			KuberboatServicesChainName,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error when initializing %s chain: %v",
+				KuberboatServicesChainName,
+				err,
+			)
+		}
+	}
+
+	// Find out whether the rule exists in OUTPUT chain.
+	exist, err = ic.iptables.Exists(
+		NatTableName,
+		OutputChainName,
+		JumpFlag,
+		KuberboatServicesChainName,
+	)
+	if err != nil {
+		return err
+	}
+
+	if !exist {
+		// If the rule does not exist in OUTPUT chain, then insert it.
+		err = ic.iptables.Insert(
+			NatTableName,
+			OutputChainName,
 			1,
 			JumpFlag,
 			KuberboatServicesChainName,
@@ -216,7 +263,7 @@ func (ic *iptablesClientInner) InitServiceIPTables() error {
 	// Create a chain named KUBERBOAT-MARK-MASQ in nat table.
 	ic.iptables.NewChain(NatTableName, KuberboatMarkChainName)
 
-	// Add an MARK rule in KUBERBOAT-MARK-MASQ chain.
+	// Add a MARK rule in KUBERBOAT-MARK-MASQ chain.
 	err = ic.iptables.AppendUnique(
 		NatTableName,
 		KuberboatMarkChainName,
@@ -224,6 +271,120 @@ func (ic *iptablesClientInner) InitServiceIPTables() error {
 		MarkTargetName,
 		SetXMarkFlag,
 		KuberboatXMarkParam2,
+	)
+	if err != nil {
+		return fmt.Errorf(
+			"error when applying MARK rule in %s chain: %v",
+			KuberboatMarkChainName,
+			err,
+		)
+	}
+
+	// 4. KUBERBOAT-HOST-POSTROUTING
+
+	// Create a chain named KUBERBOAT-HOST-POSTROUTING in nat table.
+	ic.iptables.NewChain(NatTableName, KuberboatHostPostroutingChainName)
+
+	// Find out whether the rule exists in POSTROUTING chain.
+	exist, err = ic.iptables.Exists(
+		NatTableName,
+		PostroutingChainName,
+		SourceFlag,
+		ic.hostINetIP,
+		JumpFlag,
+		KuberboatHostPostroutingChainName,
+	)
+	if err != nil {
+		return err
+	}
+
+	if !exist {
+		// If the rule does not exist in POSTROUTING chain, then insert it.
+		err = ic.iptables.Insert(
+			NatTableName,
+			PostroutingChainName,
+			1,
+			SourceFlag,
+			ic.hostINetIP,
+			JumpFlag,
+			KuberboatHostPostroutingChainName,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error when initializing %s chain: %v",
+				KuberboatHostPostroutingChainName,
+				err,
+			)
+		}
+
+		// -A KUBERBOAT-HOST-POSTROUTING -m mark ! --mark 0x8000/0x8000 -j RETURN
+		err = ic.iptables.AppendUnique(
+			NatTableName,
+			KuberboatHostPostroutingChainName,
+			MatchFlag,
+			MatchParamMark,
+			MatchParamNot,
+			MarkFlag,
+			KuberboatHostMarkParam,
+			JumpFlag,
+			ReturnTargetName,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error when applying RETURN rule in %s chain: %v",
+				KuberboatHostPostroutingChainName,
+				err,
+			)
+		}
+
+		// -A KUBERBOAT-HOST-POSTROUTING -j MARK --set-xmark 0x8000/0
+		err = ic.iptables.AppendUnique(
+			NatTableName,
+			KuberboatHostPostroutingChainName,
+			JumpFlag,
+			MarkTargetName,
+			SetXMarkFlag,
+			KuberboatXMarkParam3,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error when applying MARK rule in %s chain: %v",
+				KuberboatHostPostroutingChainName,
+				err,
+			)
+		}
+
+		// -A KUBERBOAT-HOST-POSTROUTING -j SNAT --to-source <Flannel IP>
+		err = ic.iptables.AppendUnique(
+			NatTableName,
+			KuberboatHostPostroutingChainName,
+			JumpFlag,
+			SNatChainName,
+			SNatDestinationFlag,
+			ic.flannelIP,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error when applying SNAT rule in %s chain: %v",
+				KuberboatHostPostroutingChainName,
+				err,
+			)
+		}
+	}
+
+	// 5. KUBERBOAT-HOST-MARK-MASQ
+
+	// Create a chain named KUBERBOAT-HOST-MARK-MASQ in nat table.
+	ic.iptables.NewChain(NatTableName, KuberboatHostMarkChainName)
+
+	// Add a MARK rule in KUBERBOAT-HOST-MARK-MASQ chain.
+	err = ic.iptables.AppendUnique(
+		NatTableName,
+		KuberboatHostMarkChainName,
+		JumpFlag,
+		MarkTargetName,
+		SetXMarkFlag,
+		KuberboatXMarkParam4,
 	)
 	if err != nil {
 		return fmt.Errorf(
@@ -296,6 +457,7 @@ func (ic *iptablesClientInner) ApplyPodChainRules(
 	podChainName string,
 	podIP string,
 	targetPort uint16,
+	sameHost bool,
 ) error {
 	if net.ParseIP(podIP) == nil {
 		return fmt.Errorf("pod IP %s is not valid", podIP)
@@ -316,6 +478,26 @@ func (ic *iptablesClientInner) ApplyPodChainRules(
 			podIP,
 			err,
 		)
+	}
+
+	// For chains of pods on the same host as Kubelet, we do nothing. For chains of other pods, we add
+	// a mask chain for doing SNAT later.
+	if !sameHost {
+		err := ic.iptables.AppendUnique(
+			NatTableName,
+			podChainName,
+			SourceFlag,
+			ic.hostINetIP,
+			JumpFlag,
+			KuberboatHostMarkChainName,
+		)
+		if err != nil {
+			return fmt.Errorf(
+				"error when applying jump-to-mask rule for host IP %s: %v",
+				ic.hostINetIP,
+				err,
+			)
+		}
 	}
 
 	// Add a DNAT rule to the pod chain.

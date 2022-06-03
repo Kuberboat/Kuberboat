@@ -97,6 +97,8 @@ type ComponentManager interface {
 	AutoscalerExistsByName(autoscalerName string) bool
 	// ListAutoscalers lists all the autoscalers present.
 	ListAutoscalers() []*core.HorizontalPodAutoscaler
+	// GetAutoscalerByName gets an autoscaler from ComponentManager by name.
+	GetAutoscalerByName(name string) *core.HorizontalPodAutoscaler
 	// DeploymentAutoscaled checks whether a deployment is monitored by an autoscaler.
 	DeploymentAutoscaled(deploymentName string) bool
 }
@@ -410,6 +412,12 @@ func (cm *componentManagerInner) ListAutoscalers() []*core.HorizontalPodAutoscal
 		autoscalers = append(autoscalers, autoscaler)
 	}
 	return autoscalers
+}
+
+func (cm *componentManagerInner) GetAutoscalerByName(name string) *core.HorizontalPodAutoscaler {
+	cm.mtx.RLock()
+	defer cm.mtx.RUnlock()
+	return cm.autoscalers[name]
 }
 
 func (cm *componentManagerInner) DeploymentAutoscaled(deploymentName string) bool {

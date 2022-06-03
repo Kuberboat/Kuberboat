@@ -128,6 +128,8 @@ type PodStatus struct {
 	HostIP string
 	// IPv4 address assigned to the pod. Empty if not yet allocated.
 	PodIP string
+	// RunningContainers is the number of containers (aside from sandbox) that are running.
+	RunningContainers int
 }
 
 // Pod is a collection of containers that can run on a host. This resource is created
@@ -405,6 +407,9 @@ type AutoscalerSpec struct {
 	MinReplicas uint32 `yaml:"minReplicas"`
 	// MaxReplicas is the maximal replica number of the pods in target object.
 	MaxReplicas uint32 `yaml:"maxReplicas"`
+	// ScaleInterval is the interval at which an autoscaler scales in seconds.
+	// The minimum is 12s.
+	ScaleInterval int64 `yaml:"scaleInterval"`
 	// Metrics is the metrics that autoscaler needs to monitor on. Only CPU and memory
 	// are supported.
 	Metrics []Metric

@@ -20,7 +20,7 @@ import (
 const (
 	PrometheusAddress    string        = "http://localhost:9090"
 	QueryTimeout         time.Duration = 5 * time.Second
-	UsageComputeDuration string        = "15s"
+	UsageComputeDuration string        = "10s"
 )
 
 // MetricsManager monitors the CPU and memory usage of all the ready pods at set intervals.

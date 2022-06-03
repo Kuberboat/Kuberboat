@@ -87,7 +87,7 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager, sm service.Co
 		for _, podName := range podNames {
 			pod, ok := nameToPods[podName]
 			if !ok {
-				glog.Info("service has an unknown pod")
+				glog.Warningf("service has an unknown pod")
 			} else {
 				servicePods.PushBack(pod)
 			}
@@ -115,7 +115,7 @@ func Recover(nm *node.NodeManager, cm *apiserver.ComponentManager, sm service.Co
 		for _, podName := range podNames {
 			pod, ok := nameToPods[podName]
 			if !ok {
-				glog.Info("deployment has an unknown pod")
+				glog.Warningf("deployment has an unknown pod")
 			} else {
 				deploymentPods.PushBack(pod)
 			}

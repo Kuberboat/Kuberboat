@@ -193,6 +193,9 @@ func applyAutoscaler(data []byte) {
 	if autoscaler.Spec.MinReplicas > autoscaler.Spec.MaxReplicas {
 		log.Fatalf("number of min replicas must be no greater than that of max replicas")
 	}
+	if autoscaler.Spec.ScaleInterval < 12 {
+		log.Fatalf("scale interval cannot be less than 12s")
+	}
 	for _, metric := range autoscaler.Spec.Metrics {
 		if metric.Resource != core.ResourceCPU && metric.Resource != core.ResourceMemory {
 			log.Fatalf("unsupported metric: %s", metric.Resource)

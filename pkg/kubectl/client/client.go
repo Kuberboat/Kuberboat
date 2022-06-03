@@ -200,3 +200,12 @@ func (c *ctlClient) DescribeNodes() (*pb.DescribeNodesResponse, error) {
 	defer cancel()
 	return c.client.DescribeNodes(ctx, &pb.EmptyRequest{})
 }
+
+func (c *ctlClient) DescribeAutoscalers(all bool, names []string) (*pb.DescribeAutoscalersResponse, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), CONN_TIMEOUT)
+	defer cancel()
+	return c.client.DescribeAutoscalers(ctx, &pb.DescribeAutoscalersRequest{
+		All:             all,
+		AutoscalerNames: names,
+	})
+}

@@ -14,10 +14,12 @@ import (
 	kubeerror "p9t.io/kuberboat/pkg/api/error"
 	"p9t.io/kuberboat/pkg/apiserver/etcd"
 	kl "p9t.io/kuberboat/pkg/kubelet"
+	"p9t.io/kuberboat/pkg/kubelet/pod"
 	"p9t.io/kuberboat/pkg/kubelet/recover"
 	pb "p9t.io/kuberboat/pkg/proto"
 )
 
+var podMetaManager pod.MetaManager
 var kubelet kl.Kubelet
 var kubeProxy kl.KubeProxy
 
@@ -124,8 +126,9 @@ func StartServer(etcdServers string) {
 	if err := etcd.InitializeClient(etcdServers); err != nil {
 		glog.Fatal(err)
 	}
-	kubelet = kl.NewKubelet()
-	kubeProxy = kl.NewKubeProxy()
+	podMetaManager = pod.NewMetaManager()
+	kubelet = kl.NewKubelet(podMetaManager)
+	kubeProxy = kl.NewKubeProxy(podMetaManager)
 	podMetaManager, runtimeManager := kubelet.GetManager()
 	if err := recover.Recover(podMetaManager, runtimeManager, kubeProxy.GetMetaManager()); err != nil {
 		glog.Fatal(err)

@@ -11,6 +11,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/stretchr/testify/assert"
 	"p9t.io/kuberboat/pkg/api/core"
+	"p9t.io/kuberboat/pkg/kubelet/pod"
 )
 
 var testPod = core.Pod{
@@ -102,7 +103,8 @@ func TestAddAndDeletePod(t *testing.T) {
 	flag.Parse()
 
 	ctx := context.Background()
-	kl := NewKubelet()
+	podMetaManager := pod.NewMetaManager()
+	kl := NewKubelet(podMetaManager)
 	if err := kl.AddPod(ctx, &testPod); err != nil {
 		validateCleanUp(t, kl)
 		glog.Fatal(err)
@@ -122,7 +124,8 @@ func TestAddInvalidPod(t *testing.T) {
 	flag.Parse()
 
 	ctx := context.Background()
-	kl := NewKubelet()
+	podMetaManager := pod.NewMetaManager()
+	kl := NewKubelet(podMetaManager)
 	err = kl.AddPod(ctx, &invalidPod)
 	assert.NotNil(t, err)
 	assert.NotEmpty(t, kl.GetPods())

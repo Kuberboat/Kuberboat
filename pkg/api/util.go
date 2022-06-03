@@ -48,6 +48,5 @@ func IsSubset(inner, outer *map[string]string) bool {
 			return false
 		}
 	}
-	fmt.Println("IsSubset!")
 	return true
 }

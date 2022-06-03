@@ -147,6 +147,13 @@ func (m *basicController) ApplyDeployment(deployment *core.Deployment) error {
 		}
 		m.componentManager.SetDeployment(deployment, list.New())
 	}
+
+	glog.Infof(
+		"DEPLOYMENT [%v]: deployment created with %d replicas",
+		deployment.Name,
+		deployment.Spec.Replicas,
+	)
+
 	return nil
 }
 
@@ -260,7 +267,7 @@ func (m *basicController) DeleteDeploymentByName(name string) error {
 		// Delete the deployment in etcd and memory.
 		DeleteDeploymentInEtcd(name)
 		m.componentManager.DeleteDeploymentByName(name)
-		glog.Infof("DEPLOYMENT [%v]: successfully deleted", name)
+		glog.Infof("DEPLOYMENT [%v]: deployment deleted", name)
 	} else {
 		return fmt.Errorf("no such deployment: %v", name)
 	}
@@ -296,6 +303,16 @@ func (m *basicController) HandleEvent(event apiserver.Event) {
 		podName := event.(*apiserver.PodReadyEvent).PodName
 		if m.componentManager.PodExistsByName(podName) {
 			err = m.handlePodReady(m.componentManager.GetPodByName(podName))
+		}
+	case apiserver.PodFail:
+		podName := event.(*apiserver.PodFailEvent).PodName
+		pod := m.componentManager.GetPodByName(podName)
+		if pod == nil {
+			glog.Errorf("failed pod does not exist: %v", podName)
+			return
+		}
+		if deployment := m.componentManager.GetDeploymentByPodName(podName); deployment != nil {
+			m.deleteDeploymentPod(deployment, pod)
 		}
 	}
 
@@ -435,7 +452,8 @@ func updateDeploymentStatusOnPodRemoval(deployment *core.Deployment, pod *core.P
 	if isPodUpdated(deployment, pod) {
 		deployment.Status.UpdatedReplicas--
 	}
-	if pod.Status.Phase == core.PodReady {
+	// Failed pods must be Ready previously.
+	if pod.Status.Phase == core.PodReady || pod.Status.Phase == core.PodFailed {
 		deployment.Status.ReadyReplicas--
 	}
 }
